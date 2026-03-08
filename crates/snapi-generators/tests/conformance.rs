@@ -790,10 +790,19 @@ fn suffix_config(name: &str) -> TargetConfig {
 #[test]
 fn schema_name_collision_fails_by_default() {
     let ir = load_ir("collisions_schema_names.yaml");
-    let err = FetchGenerator.generate(&ir, &default_config("sdk")).err().expect("expected collision error");
+    let err = FetchGenerator
+        .generate(&ir, &default_config("sdk"))
+        .err()
+        .expect("expected collision error");
     let msg = format!("{err}");
-    assert!(msg.contains("hello_world"), "error should name first schema; got: {msg}");
-    assert!(msg.contains("hello-world"), "error should name second schema; got: {msg}");
+    assert!(
+        msg.contains("hello_world"),
+        "error should name first schema; got: {msg}"
+    );
+    assert!(
+        msg.contains("hello-world"),
+        "error should name second schema; got: {msg}"
+    );
 }
 
 #[test]
@@ -802,10 +811,15 @@ fn schema_name_collision_suffix_strategy_produces_suffixed_type() {
     let tree = FetchGenerator.generate(&ir, &suffix_config("sdk")).unwrap();
     let models = extract_text(&tree, "src/models.ts");
     assert!(
-        models.contains("HelloWorld ") || models.contains("HelloWorld\n") || models.contains("HelloWorld{"),
+        models.contains("HelloWorld ")
+            || models.contains("HelloWorld\n")
+            || models.contains("HelloWorld{"),
         "first schema keeps base name; got:\n{models}"
     );
-    assert!(models.contains("HelloWorld2"), "second schema gets suffix; got:\n{models}");
+    assert!(
+        models.contains("HelloWorld2"),
+        "second schema gets suffix; got:\n{models}"
+    );
 }
 
 // --- Resource (tag) name collisions -----------------------------------------
@@ -813,10 +827,19 @@ fn schema_name_collision_suffix_strategy_produces_suffixed_type() {
 #[test]
 fn tag_collision_fails_by_default() {
     let ir = load_ir("collisions_tags.yaml");
-    let err = FetchGenerator.generate(&ir, &default_config("sdk")).err().expect("expected collision error");
+    let err = FetchGenerator
+        .generate(&ir, &default_config("sdk"))
+        .err()
+        .expect("expected collision error");
     let msg = format!("{err}");
-    assert!(msg.contains("hello_world"), "error should name first tag; got: {msg}");
-    assert!(msg.contains("hello-world"), "error should name second tag; got: {msg}");
+    assert!(
+        msg.contains("hello_world"),
+        "error should name first tag; got: {msg}"
+    );
+    assert!(
+        msg.contains("hello-world"),
+        "error should name second tag; got: {msg}"
+    );
 }
 
 #[test]
@@ -839,10 +862,19 @@ fn tag_collision_suffix_strategy_produces_suffixed_class() {
 #[test]
 fn method_collision_fails_by_default() {
     let ir = load_ir("collisions_op_ids.yaml");
-    let err = FetchGenerator.generate(&ir, &default_config("sdk")).err().expect("expected collision error");
+    let err = FetchGenerator
+        .generate(&ir, &default_config("sdk"))
+        .err()
+        .expect("expected collision error");
     let msg = format!("{err}");
-    assert!(msg.contains("list_pets"), "error should name first op id; got: {msg}");
-    assert!(msg.contains("listPets"), "error should name second op id; got: {msg}");
+    assert!(
+        msg.contains("list_pets"),
+        "error should name first op id; got: {msg}"
+    );
+    assert!(
+        msg.contains("listPets"),
+        "error should name second op id; got: {msg}"
+    );
 }
 
 #[test]
@@ -850,6 +882,12 @@ fn method_collision_suffix_strategy_produces_suffixed_method() {
     let ir = load_ir("collisions_op_ids.yaml");
     let tree = FetchGenerator.generate(&ir, &suffix_config("sdk")).unwrap();
     let resource = extract_text(&tree, "src/resources/pets.ts");
-    assert!(resource.contains("async listPets("), "first method keeps base name; got:\n{resource}");
-    assert!(resource.contains("async listPets2("), "second method gets suffix; got:\n{resource}");
+    assert!(
+        resource.contains("async listPets("),
+        "first method keeps base name; got:\n{resource}"
+    );
+    assert!(
+        resource.contains("async listPets2("),
+        "second method gets suffix; got:\n{resource}"
+    );
 }
