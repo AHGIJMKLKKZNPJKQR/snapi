@@ -1,0 +1,17 @@
+# {{ name }}
+
+{{ description | default(value='Generated TypeScript SDK') }}
+
+## Installation
+
+```bash
+npm install {{ name }}
+```
+
+## Usage
+
+```typescript
+import { ApiClient } from '{{ name }}';
+
+const client = new ApiClient({ baseUrl: 'https://api.example.com', apiKey: 'your-api-key' });
+```

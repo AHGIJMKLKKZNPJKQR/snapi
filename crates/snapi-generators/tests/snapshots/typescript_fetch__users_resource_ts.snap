@@ -1,0 +1,32 @@
+---
+source: crates/snapi-generators/tests/typescript_fetch.rs
+expression: resource
+---
+import type { User } from "../models";
+
+export class UsersResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List all users */
+  async listUsers(): Promise<User[]> {
+    const url = new URL(`${this.baseUrl}/users`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<User[]>;
+  }
+
+  /** Get a user by ID */
+  async getUser(id: number): Promise<User> {
+    const url = new URL(`${this.baseUrl}/users/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<User>;
+  }
+
+}

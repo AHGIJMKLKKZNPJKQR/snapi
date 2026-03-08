@@ -1,0 +1,22 @@
+---
+source: crates/snapi-generators/tests/typescript_fetch.rs
+expression: client
+---
+import { UsersResource } from "./resources/users";
+
+export interface ApiClientOptions {
+  baseUrl: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+/** Test API */
+export class ApiClient {
+  readonly users: UsersResource;
+
+  constructor(private options: ApiClientOptions) {
+    const headers: Record<string, string> = { ...options.headers };
+    if (options.apiKey) headers["Authorization"] = `Bearer ${options.apiKey}`;
+    this.users = new UsersResource(options.baseUrl, headers);
+  }
+}

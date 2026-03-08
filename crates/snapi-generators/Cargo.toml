@@ -1,0 +1,15 @@
+[package]
+name = "snapi-generators"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow   = { workspace = true }
+heck     = { workspace = true }
+indexmap = { workspace = true }
+tera     = { workspace = true }
+snapi-core = { path = "../snapi-core" }
+
+[dev-dependencies]
+insta    = { workspace = true }
+tempfile = { workspace = true }

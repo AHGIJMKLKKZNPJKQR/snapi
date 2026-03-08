@@ -1,0 +1,107 @@
+openapi: "3.1.0"
+info:
+  title: Events API
+  version: "1.0.0"
+  description: "An event stream API demonstrating oneOf schemas and union types"
+servers:
+  - url: https://events.example.com
+
+paths:
+  /events:
+    get:
+      operationId: listEvents
+      summary: List all events
+      tags: [events]
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+
+  /events/{id}:
+    get:
+      operationId: getEvent
+      summary: Get a single event
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: An event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+
+components:
+  schemas:
+    Event:
+      oneOf:
+        - $ref: "#/components/schemas/UserCreatedEvent"
+        - $ref: "#/components/schemas/OrderPlacedEvent"
+        - $ref: "#/components/schemas/PaymentProcessedEvent"
+
+    UserCreatedEvent:
+      type: object
+      required: [type, user_id, email]
+      properties:
+        type:
+          type: string
+        user_id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+
+    OrderPlacedEvent:
+      type: object
+      required: [type, order_id, user_id, amount]
+      properties:
+        type:
+          type: string
+        order_id:
+          type: string
+        user_id:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+
+    PaymentProcessedEvent:
+      type: object
+      required: [type, payment_id, order_id, status]
+      properties:
+        type:
+          type: string
+        payment_id:
+          type: string
+        order_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+
+    PaymentStatus:
+      type: string
+      enum: [pending, succeeded, failed, refunded]

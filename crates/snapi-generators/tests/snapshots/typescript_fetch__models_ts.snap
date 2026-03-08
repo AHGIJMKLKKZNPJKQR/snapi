@@ -1,0 +1,16 @@
+---
+source: crates/snapi-generators/tests/typescript_fetch.rs
+expression: models
+---
+export interface User {
+  /** User ID */
+  id: number;
+  /** User's full name */
+  name: string;
+  /** Email address */
+  email?: string | null;
+}
+
+export type UserStatus =
+  | "ACTIVE"
+  | "INACTIVE";
