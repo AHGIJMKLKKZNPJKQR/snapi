@@ -76,6 +76,7 @@ The resolver's `visited` set is **stack-local**: entries are inserted on the way
 - User-facing errors use `miette`. Add new variants to `SnapiError` in `snapi-core/src/error.rs` with `#[diagnostic]` hints.
 - Tera templates for SDK boilerplate files (package.json, tsconfig.json, README) are embedded at compile time via `include_str!()`. Runtime template strings for code generation are fine inline.
 - Avoid using unchecked casts in all code and tests.
+- Functions should be short and have low branch complexity.
 
 ---
 

@@ -19,7 +19,7 @@ export class TodosResource {
     }
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<Todo[]>;
@@ -42,7 +42,7 @@ export class TodosResource {
     const url = new URL(`${this.baseUrl}/todos/${id}`).toString();
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<Todo>;
@@ -65,7 +65,7 @@ export class TodosResource {
     const url = new URL(`${this.baseUrl}/todos/${id}`).toString();
     const response = await fetch(url, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return;

@@ -18,7 +18,7 @@ export class PetsResource {
     }
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<Pet[]>;
@@ -41,7 +41,7 @@ export class PetsResource {
     const url = new URL(`${this.baseUrl}/pets/${id}`).toString();
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<Pet>;
@@ -52,7 +52,7 @@ export class PetsResource {
     const url = new URL(`${this.baseUrl}/pets/${id}`).toString();
     const response = await fetch(url, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return;

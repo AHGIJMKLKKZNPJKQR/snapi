@@ -12,7 +12,6 @@ pub fn normalize(resolved: ResolvedSpec) -> anyhow::Result<IrApi> {
     let version = info.version.clone();
     let description = info.description.clone();
 
-    // Servers
     let servers = spec
         .servers
         .iter()
@@ -22,7 +21,6 @@ pub fn normalize(resolved: ResolvedSpec) -> anyhow::Result<IrApi> {
         })
         .collect();
 
-    // Schemas
     let mut schemas = IndexMap::new();
     let mut visiting: HashSet<String> = HashSet::new();
 
@@ -37,7 +35,6 @@ pub fn normalize(resolved: ResolvedSpec) -> anyhow::Result<IrApi> {
         }
     }
 
-    // Operations
     let mut operations = vec![];
     if let Some(paths) = &spec.paths {
         for (path_str, path_item) in paths {
@@ -45,7 +42,6 @@ pub fn normalize(resolved: ResolvedSpec) -> anyhow::Result<IrApi> {
         }
     }
 
-    // Auth schemes
     let mut auth_schemes = IndexMap::new();
     if let Some(components) = &spec.components {
         for (name, sec_ref) in &components.security_schemes {
@@ -75,82 +71,88 @@ fn normalize_schema(
     visiting: &mut HashSet<String>,
     all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
 ) -> anyhow::Result<IrType> {
-    // Check for allOf
     if !schema.all_of.is_empty() {
         return normalize_all_of(&schema.all_of, name, visiting, all_schemas);
     }
-
-    // Check for oneOf
     if !schema.one_of.is_empty() {
         return normalize_one_of(schema, name, visiting, all_schemas);
     }
-
-    // Check for anyOf
     if !schema.any_of.is_empty() {
         return normalize_any_of(&schema.any_of, name, visiting, all_schemas);
     }
-
     if !schema.enum_values.is_empty() {
-        if let Some(enum_name) = name {
-            // Named (top-level) enum: produce a proper IrType::Enum so the
-            // generator emits an exported `export type Foo = "A" | "B"` declaration.
-            let variants = schema
-                .enum_values
-                .iter()
-                .map(|s| IrEnumVariant {
-                    name: crate::utils::case::to_pascal_case(s.as_str().unwrap_or("")),
-                    ty: IrType::String(IrStringConstraints {
-                        min_length: None,
-                        max_length: None,
-                        pattern: None,
-                        format: None,
-                    }),
-                })
-                .collect();
-            return Ok(IrType::Enum(IrEnum {
-                name: enum_name.to_string(),
-                variants,
-                discriminator: None,
-            }));
-        } else {
-            // Inline enum (no component name): produce string literals so the
-            // generator emits `"rtp_stream"` rather than the bare identifier
-            // `Enum` which would be an undefined TypeScript type.
-            let literals: Vec<IrType> = schema
-                .enum_values
-                .iter()
-                .filter_map(|v| v.as_str().map(|s| IrType::StringLiteral(s.to_string())))
-                .collect();
-            return match literals.len() {
-                0 => Ok(IrType::Any),
-                1 => Ok(literals.into_iter().next().unwrap()),
-                _ => Ok(IrType::Union(literals)),
-            };
-        }
+        return Ok(match name {
+            Some(n) => normalize_named_enum(schema, n),
+            None => normalize_inline_enum(schema),
+        });
     }
 
-    // Determine type(s)
     let types = get_schema_types(schema);
-
-    // Check for nullable pattern: type: ["X", "null"]
-    let non_null: Vec<_> = types.iter().filter(|t| **t != SchemaType::Null).collect();
-    if types.contains(&SchemaType::Null) && non_null.len() == 1 {
-        let inner_type = build_simple_type(non_null[0], schema, name, visiting, all_schemas)?;
-        return Ok(IrType::Optional(Box::new(inner_type)));
+    if let Some(ty) = try_build_nullable(&types, schema, name, visiting, all_schemas)? {
+        return Ok(ty);
     }
-
     if types.len() > 1 {
-        // Union of multiple types
-        let mut variants = vec![];
-        for t in &types {
-            let ty = build_simple_type(t, schema, name, visiting, all_schemas)?;
-            variants.push(ty);
-        }
+        let variants = types
+            .iter()
+            .map(|t| build_simple_type(t, schema, name, visiting, all_schemas))
+            .collect::<anyhow::Result<Vec<_>>>()?;
         return Ok(IrType::Union(variants));
     }
 
     let type_val = types.first().copied().unwrap_or(SchemaType::Object);
     build_simple_type(&type_val, schema, name, visiting, all_schemas)
+}
+
+fn normalize_named_enum(schema: &ObjectSchema, name: &str) -> IrType {
+    let variants = schema
+        .enum_values
+        .iter()
+        .map(|s| IrEnumVariant {
+            name: s.as_str().unwrap_or("").to_string(),
+            ty: IrType::String(IrStringConstraints {
+                min_length: None,
+                max_length: None,
+                pattern: None,
+                format: None,
+            }),
+        })
+        .collect();
+    IrType::Enum(IrEnum {
+        name: name.to_string(),
+        variants,
+        discriminator: None,
+    })
+}
+
+fn normalize_inline_enum(schema: &ObjectSchema) -> IrType {
+    let literals: Vec<IrType> = schema
+        .enum_values
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| IrType::StringLiteral(s.to_string())))
+        .collect();
+    match literals.len() {
+        0 => IrType::Any,
+        1 => literals.into_iter().next().unwrap(),
+        _ => IrType::Union(literals),
+    }
+}
+
+fn try_build_nullable(
+    types: &[SchemaType],
+    schema: &ObjectSchema,
+    name: Option<&str>,
+    visiting: &mut HashSet<String>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> anyhow::Result<Option<IrType>> {
+    if !types.contains(&SchemaType::Null) {
+        return Ok(None);
+    }
+    let non_null: Vec<_> = types.iter().filter(|t| **t != SchemaType::Null).collect();
+    if non_null.len() != 1 {
+        return Ok(None);
+    }
+    let inner = build_simple_type(non_null[0], schema, name, visiting, all_schemas)?;
+    Ok(Some(IrType::Optional(Box::new(inner))))
 }
 
 fn get_schema_types(schema: &ObjectSchema) -> Vec<SchemaType> {
@@ -186,30 +188,41 @@ fn build_simple_type(
         })),
         SchemaType::Boolean => Ok(IrType::Boolean),
         SchemaType::Null => Ok(IrType::Null),
-        SchemaType::Array => {
-            let items = if let Some(items_schema) = &schema.items {
-                use oas3::spec::Schema;
-                match items_schema.as_ref() {
-                    Schema::Object(oor) => match oor.as_ref() {
-                        ObjectOrReference::Object(s) => {
-                            normalize_schema(s, None, visiting, all_schemas)?
-                        }
-                        ObjectOrReference::Ref { ref_path, .. } => {
-                            resolve_ref_type(ref_path, visiting, all_schemas)?
-                        }
-                    },
-                    Schema::Boolean(_) => IrType::Any,
-                }
-            } else {
-                IrType::Any
-            };
-            Ok(IrType::Array {
-                items: Box::new(items),
-                min: schema.min_items,
-                max: schema.max_items,
-            })
-        }
+        SchemaType::Array => build_array_type(schema, visiting, all_schemas),
         SchemaType::Object => normalize_object(schema, name, visiting, all_schemas),
+    }
+}
+
+fn build_array_type(
+    schema: &ObjectSchema,
+    visiting: &mut HashSet<String>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> anyhow::Result<IrType> {
+    let items = match &schema.items {
+        None => IrType::Any,
+        Some(items_schema) => resolve_items_schema(items_schema.as_ref(), visiting, all_schemas)?,
+    };
+    Ok(IrType::Array {
+        items: Box::new(items),
+        min: schema.min_items,
+        max: schema.max_items,
+    })
+}
+
+fn resolve_items_schema(
+    items: &oas3::spec::Schema,
+    visiting: &mut HashSet<String>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> anyhow::Result<IrType> {
+    use oas3::spec::Schema;
+    match items {
+        Schema::Object(oor) => match oor.as_ref() {
+            ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas),
+            ObjectOrReference::Ref { ref_path, .. } => {
+                resolve_ref_type(ref_path, visiting, all_schemas)
+            }
+        },
+        Schema::Boolean(_) => Ok(IrType::Any),
     }
 }
 
@@ -219,55 +232,73 @@ fn normalize_object(
     visiting: &mut HashSet<String>,
     all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
 ) -> anyhow::Result<IrType> {
-    // Check for additionalProperties (Map type)
-    if let Some(additional) = &schema.additional_properties {
-        use oas3::spec::Schema;
-        return match additional {
-            Schema::Object(oor) => match oor.as_ref() {
-                ObjectOrReference::Object(ap_schema) => {
-                    let value_type = normalize_schema(ap_schema, None, visiting, all_schemas)?;
-                    Ok(IrType::Map(Box::new(value_type)))
-                }
-                ObjectOrReference::Ref { ref_path, .. } => {
-                    let value_type = resolve_ref_type(ref_path, visiting, all_schemas)?;
-                    Ok(IrType::Map(Box::new(value_type)))
-                }
-            },
-            Schema::Boolean(_) => Ok(IrType::Map(Box::new(IrType::Any))),
-        };
+    if schema.properties.is_empty() {
+        if let Some(additional) = &schema.additional_properties {
+            return normalize_additional_properties(additional, visiting, all_schemas);
+        }
     }
 
-    // Regular object
     let required_fields: HashSet<String> = schema.required.iter().cloned().collect();
-
     let mut fields = IndexMap::new();
     for (field_name, field_ref) in &schema.properties {
-        let (field_schema, field_ty) = match field_ref {
-            ObjectOrReference::Object(fs) => {
-                let ty = normalize_schema(fs, None, visiting, all_schemas)?;
-                (Some(fs), ty)
-            }
-            ObjectOrReference::Ref { ref_path, .. } => {
-                let ty = resolve_ref_type(ref_path, visiting, all_schemas)?;
-                (None, ty)
-            }
-        };
-        let required = required_fields.contains(field_name);
-        let description = field_schema.and_then(|fs| fs.description.clone());
-        fields.insert(
-            field_name.clone(),
-            IrField {
-                ty: field_ty,
-                required,
-                description,
-            },
-        );
+        let field = normalize_object_field(
+            field_name,
+            field_ref,
+            &required_fields,
+            visiting,
+            all_schemas,
+        )?;
+        fields.insert(field_name.clone(), field);
     }
 
     Ok(IrType::Object(IrObject {
         name: name.map(|s| s.to_string()),
         fields,
     }))
+}
+
+fn normalize_additional_properties(
+    additional: &oas3::spec::Schema,
+    visiting: &mut HashSet<String>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> anyhow::Result<IrType> {
+    use oas3::spec::Schema;
+    let value_type = match additional {
+        Schema::Object(oor) => match oor.as_ref() {
+            ObjectOrReference::Object(ap_schema) => {
+                normalize_schema(ap_schema, None, visiting, all_schemas)?
+            }
+            ObjectOrReference::Ref { ref_path, .. } => {
+                resolve_ref_type(ref_path, visiting, all_schemas)?
+            }
+        },
+        Schema::Boolean(_) => IrType::Any,
+    };
+    Ok(IrType::Map(Box::new(value_type)))
+}
+
+fn normalize_object_field(
+    field_name: &str,
+    field_ref: &ObjectOrReference<ObjectSchema>,
+    required_fields: &HashSet<String>,
+    visiting: &mut HashSet<String>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> anyhow::Result<IrField> {
+    let (field_schema, field_ty) = match field_ref {
+        ObjectOrReference::Object(fs) => {
+            let ty = normalize_schema(fs, None, visiting, all_schemas)?;
+            (Some(fs), ty)
+        }
+        ObjectOrReference::Ref { ref_path, .. } => {
+            let ty = resolve_ref_type(ref_path, visiting, all_schemas)?;
+            (None, ty)
+        }
+    };
+    Ok(IrField {
+        ty: field_ty,
+        required: required_fields.contains(field_name),
+        description: field_schema.and_then(|fs| fs.description.clone()),
+    })
 }
 
 fn normalize_all_of(
@@ -298,7 +329,6 @@ fn normalize_all_of(
         return Ok(IrType::Object(objects.into_iter().next().unwrap()));
     }
 
-    // Try to merge into a single object
     let mut merged_fields = IndexMap::new();
     for obj in &objects {
         for (k, v) in &obj.fields {
@@ -314,21 +344,19 @@ fn normalize_all_of(
 fn normalize_one_of(
     schema: &ObjectSchema,
     _name: Option<&str>,
-
     visiting: &mut HashSet<String>,
     all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
 ) -> anyhow::Result<IrType> {
-    // Without discriminator: Union
-    let mut variants = vec![];
-    for schema_ref in &schema.one_of {
-        let ty = match schema_ref {
-            ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas)?,
+    let variants = schema
+        .one_of
+        .iter()
+        .map(|schema_ref| match schema_ref {
+            ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas),
             ObjectOrReference::Ref { ref_path, .. } => {
-                resolve_ref_type(ref_path, visiting, all_schemas)?
+                resolve_ref_type(ref_path, visiting, all_schemas)
             }
-        };
-        variants.push(ty);
-    }
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
     Ok(IrType::Union(variants))
 }
 
@@ -338,16 +366,15 @@ fn normalize_any_of(
     visiting: &mut HashSet<String>,
     all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
 ) -> anyhow::Result<IrType> {
-    let mut variants = vec![];
-    for schema_ref in any_of {
-        let ty = match schema_ref {
-            ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas)?,
+    let variants = any_of
+        .iter()
+        .map(|schema_ref| match schema_ref {
+            ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas),
             ObjectOrReference::Ref { ref_path, .. } => {
-                resolve_ref_type(ref_path, visiting, all_schemas)?
+                resolve_ref_type(ref_path, visiting, all_schemas)
             }
-        };
-        variants.push(ty);
-    }
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
     Ok(IrType::Union(variants))
 }
 
@@ -356,10 +383,8 @@ fn resolve_ref_type(
     visiting: &mut HashSet<String>,
     all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
 ) -> anyhow::Result<IrType> {
-    // ref_path like "#/components/schemas/Foo"
     let name = ref_path.split('/').next_back().unwrap_or(ref_path);
 
-    // Circular reference check
     if visiting.contains(name) {
         return Ok(IrType::Recursive(name.to_string()));
     }
@@ -378,9 +403,30 @@ fn resolve_ref_type(
             } => resolve_ref_type(inner_ref, visiting, all_schemas),
         }
     } else {
-        // Unknown ref — return a named recursive type
         Ok(IrType::Recursive(name.to_string()))
     }
+}
+
+fn resolve_schema_ref(
+    schema_ref: &ObjectOrReference<ObjectSchema>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> Option<IrType> {
+    let mut vis = HashSet::new();
+    match schema_ref {
+        ObjectOrReference::Object(s) => normalize_schema(s, None, &mut vis, all_schemas).ok(),
+        ObjectOrReference::Ref { ref_path, .. } => {
+            resolve_ref_type(ref_path, &mut vis, all_schemas).ok()
+        }
+    }
+}
+
+fn resolve_media_content<'a>(
+    mut content: impl Iterator<Item = (&'a String, &'a oas3::spec::MediaType)>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> Option<(String, IrType)> {
+    let (ct, media) = content.next()?;
+    let ty = resolve_schema_ref(media.schema.as_ref()?, all_schemas)?;
+    Some((ct.clone(), ty))
 }
 
 fn extract_operations(
@@ -408,144 +454,137 @@ fn extract_operations(
 
     for (method, maybe_op) in op_pairs {
         if let Some(op) = maybe_op {
-            let method_str = format!("{:?}", method).to_lowercase();
-            let op_id = op.operation_id.clone().unwrap_or_else(|| {
-                format!(
-                    "{}_{}",
-                    method_str,
-                    path_str
-                        .trim_start_matches('/')
-                        .replace('/', "_")
-                        .replace(['{', '}'], "")
-                )
-            });
-
-            let mut params = vec![];
-            for param_ref in &op.parameters {
-                if let ObjectOrReference::Object(p) = param_ref {
-                    use oas3::spec::ParameterIn;
-                    let location = match p.location {
-                        ParameterIn::Query => ParamLocation::Query,
-                        ParameterIn::Header => ParamLocation::Header,
-                        ParameterIn::Cookie => ParamLocation::Cookie,
-                        ParameterIn::Path => ParamLocation::Path,
-                    };
-                    let ty = if let Some(schema_ref) = &p.schema {
-                        match schema_ref {
-                            ObjectOrReference::Object(s) => {
-                                let mut vis = resolved.visited_schemas.clone();
-                                normalize_schema(s, None, &mut vis, &all_schemas)
-                                    .unwrap_or(IrType::Any)
-                            }
-                            ObjectOrReference::Ref { ref_path, .. } => {
-                                let mut vis = resolved.visited_schemas.clone();
-                                resolve_ref_type(ref_path, &mut vis, &all_schemas)
-                                    .unwrap_or(IrType::Any)
-                            }
-                        }
-                    } else {
-                        IrType::Any
-                    };
-                    params.push(IrParam {
-                        name: p.name.clone(),
-                        location,
-                        required: p.required.unwrap_or(false),
-                        ty,
-                        description: p.description.clone(),
-                    });
-                }
-            }
-
-            // Request body
-            let body = if let Some(body_ref) = &op.request_body {
-                match body_ref {
-                    ObjectOrReference::Object(body) => {
-                        let (content_type, ty) = body
-                            .content
-                            .iter()
-                            .next()
-                            .and_then(|(ct, media)| {
-                                let t = media.schema.as_ref().and_then(|sr| match sr {
-                                    ObjectOrReference::Object(s) => {
-                                        let mut vis = resolved.visited_schemas.clone();
-                                        normalize_schema(s, None, &mut vis, &all_schemas).ok()
-                                    }
-                                    ObjectOrReference::Ref { ref_path, .. } => {
-                                        let mut vis = resolved.visited_schemas.clone();
-                                        resolve_ref_type(ref_path, &mut vis, &all_schemas).ok()
-                                    }
-                                })?;
-                                Some((ct.clone(), t))
-                            })
-                            .unwrap_or_else(|| ("application/json".to_string(), IrType::Any));
-                        Some(IrRequestBody {
-                            required: body.required.unwrap_or(false),
-                            content_type,
-                            ty,
-                            description: body.description.clone(),
-                        })
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            };
-
-            // Responses
-            let mut responses = vec![];
-            if let Some(resp_map) = &op.responses {
-                for (status_str, response_ref) in resp_map {
-                    let status: u16 = status_str.parse().unwrap_or(200);
-                    let response = match response_ref {
-                        ObjectOrReference::Object(r) => r,
-                        _ => continue,
-                    };
-                    let (content_type, ty) = response
-                        .content
-                        .iter()
-                        .next()
-                        .and_then(|(ct, media)| {
-                            let t = media.schema.as_ref().and_then(|sr| match sr {
-                                ObjectOrReference::Object(s) => {
-                                    let mut vis = resolved.visited_schemas.clone();
-                                    normalize_schema(s, None, &mut vis, &all_schemas).ok()
-                                }
-                                ObjectOrReference::Ref { ref_path, .. } => {
-                                    let mut vis = resolved.visited_schemas.clone();
-                                    resolve_ref_type(ref_path, &mut vis, &all_schemas).ok()
-                                }
-                            })?;
-                            Some((ct.clone(), t))
-                        })
-                        .map(|(ct, t)| (Some(ct), Some(t)))
-                        .unwrap_or((None, None));
-
-                    responses.push(IrResponse {
-                        status,
-                        content_type,
-                        ty,
-                        description: response.description.clone(),
-                    });
-                }
-            }
-
-            let tags: Vec<String> = op.tags.clone();
-
-            operations.push(IrOperation {
-                id: op_id,
-                path: path_str.to_string(),
-                method,
-                summary: op.summary.clone(),
-                description: op.description.clone(),
-                tags,
-                params,
-                body,
-                responses,
-                deprecated: op.deprecated.unwrap_or(false),
-            });
+            operations.push(extract_single_operation(method, op, path_str, &all_schemas));
         }
     }
     Ok(())
+}
+
+fn extract_single_operation(
+    method: HttpMethod,
+    op: &oas3::spec::Operation,
+    path_str: &str,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> IrOperation {
+    let op_id = build_op_id(&method, op, path_str);
+    let params = extract_params(&op.parameters, all_schemas);
+    let body = op
+        .request_body
+        .as_ref()
+        .and_then(|b| extract_body(b, all_schemas));
+    let responses = op
+        .responses
+        .as_ref()
+        .map(|m| {
+            m.iter()
+                .filter_map(|(s, r)| extract_response(s, r, all_schemas))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    IrOperation {
+        id: op_id,
+        path: path_str.to_string(),
+        method,
+        summary: op.summary.clone(),
+        description: op.description.clone(),
+        tags: op.tags.clone(),
+        params,
+        body,
+        responses,
+        deprecated: op.deprecated.unwrap_or(false),
+    }
+}
+
+fn build_op_id(method: &HttpMethod, op: &oas3::spec::Operation, path_str: &str) -> String {
+    op.operation_id.clone().unwrap_or_else(|| {
+        let method_str = format!("{:?}", method).to_lowercase();
+        format!(
+            "{}_{}",
+            method_str,
+            path_str
+                .trim_start_matches('/')
+                .replace('/', "_")
+                .replace(['{', '}'], "")
+        )
+    })
+}
+
+fn extract_params(
+    params: &[ObjectOrReference<oas3::spec::Parameter>],
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> Vec<IrParam> {
+    params
+        .iter()
+        .filter_map(|param_ref| match param_ref {
+            ObjectOrReference::Object(p) => Some(extract_param(p, all_schemas)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn extract_param(
+    p: &oas3::spec::Parameter,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> IrParam {
+    use oas3::spec::ParameterIn;
+    let location = match p.location {
+        ParameterIn::Query => ParamLocation::Query,
+        ParameterIn::Header => ParamLocation::Header,
+        ParameterIn::Cookie => ParamLocation::Cookie,
+        ParameterIn::Path => ParamLocation::Path,
+    };
+    let ty = p
+        .schema
+        .as_ref()
+        .and_then(|sr| resolve_schema_ref(sr, all_schemas))
+        .unwrap_or(IrType::Any);
+    IrParam {
+        name: p.name.clone(),
+        location,
+        required: p.required.unwrap_or(false),
+        ty,
+        description: p.description.clone(),
+    }
+}
+
+fn extract_body(
+    body_ref: &ObjectOrReference<oas3::spec::RequestBody>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> Option<IrRequestBody> {
+    let body = match body_ref {
+        ObjectOrReference::Object(b) => b,
+        _ => return None,
+    };
+    let (content_type, ty) = resolve_media_content(body.content.iter(), all_schemas)
+        .unwrap_or_else(|| ("application/json".to_string(), IrType::Any));
+    Some(IrRequestBody {
+        required: body.required.unwrap_or(false),
+        content_type,
+        ty,
+        description: body.description.clone(),
+    })
+}
+
+fn extract_response(
+    status_str: &str,
+    response_ref: &ObjectOrReference<oas3::spec::Response>,
+    all_schemas: &BTreeMap<String, ObjectOrReference<ObjectSchema>>,
+) -> Option<IrResponse> {
+    let status: u16 = status_str.parse().unwrap_or(200);
+    let response = match response_ref {
+        ObjectOrReference::Object(r) => r,
+        _ => return None,
+    };
+    let (content_type, ty) = resolve_media_content(response.content.iter(), all_schemas)
+        .map(|(ct, t)| (Some(ct), Some(t)))
+        .unwrap_or((None, None));
+    Some(IrResponse {
+        status,
+        content_type,
+        ty,
+        description: response.description.clone(),
+    })
 }
 
 fn normalize_security_scheme(sec: &oas3::spec::SecurityScheme) -> Option<IrAuthScheme> {
@@ -685,12 +724,39 @@ mod tests {
             assert_eq!(e.name, "Status");
             assert_eq!(e.variants.len(), 3);
             let names: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
-            assert!(names.contains(&"Active"));
-            assert!(names.contains(&"Inactive"));
-            assert!(names.contains(&"Pending"));
+            // Variant names must preserve the original wire values, not PascalCase them.
+            assert!(names.contains(&"active"), "got {names:?}");
+            assert!(names.contains(&"inactive"), "got {names:?}");
+            assert!(names.contains(&"pending"), "got {names:?}");
         } else {
             panic!("expected Enum, got {:?}", ty);
         }
+    }
+
+    #[test]
+    fn test_normalize_object_with_additional_properties_keeps_fields() {
+        use oas3::spec::Schema;
+        let mut properties = BTreeMap::new();
+        properties.insert(
+            "id".to_string(),
+            ObjectOrReference::Object(make_string_schema()),
+        );
+
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            properties,
+            required: vec!["id".to_string()],
+            additional_properties: Some(Schema::Boolean(oas3::spec::BooleanSchema(true))),
+            ..Default::default()
+        };
+        let mut visiting = HashSet::new();
+        let all_schemas = BTreeMap::new();
+        let ty =
+            normalize_schema(&schema, Some("Extensible"), &mut visiting, &all_schemas).unwrap();
+        assert!(
+            matches!(&ty, IrType::Object(obj) if obj.fields.contains_key("id")),
+            "defined properties must be preserved when additionalProperties is also set; got {ty:?}"
+        );
     }
 
     #[test]
@@ -934,6 +1000,40 @@ mod tests {
         let ty =
             resolve_ref_type("#/components/schemas/MyType", &mut visiting, &all_schemas).unwrap();
         assert!(matches!(ty, IrType::String(_)));
+    }
+
+    #[test]
+    fn test_operation_ref_resolves_to_actual_type_not_recursive() {
+        // Regression: resolver previously pre-populated visited_schemas with all component
+        // names. extract_operations cloned that set as the initial visiting state, so every
+        // $ref to a component schema was immediately seen as "already visiting" and returned
+        // IrType::Recursive instead of the actual type.
+        use crate::pipeline::resolver::resolve;
+
+        let yaml = include_str!("../../tests/fixtures/operation_refs.yaml");
+        let spec: oas3::OpenApiV3Spec = serde_yaml::from_str(yaml).unwrap();
+        let resolved = resolve(spec).unwrap();
+        let api = normalize(resolved).unwrap();
+
+        let op = api
+            .operations
+            .iter()
+            .find(|o| o.id == "listPets")
+            .expect("operation not found");
+
+        let param = op.params.iter().find(|p| p.name == "status").unwrap();
+        assert!(
+            matches!(param.ty, IrType::String(_)),
+            "operation param $ref must resolve to actual type, not Recursive; got {:?}",
+            param.ty
+        );
+
+        let resp = op.responses.iter().find(|r| r.status == 200).unwrap();
+        assert!(
+            matches!(resp.ty, Some(IrType::Object(_))),
+            "operation response $ref must resolve to actual type, not Recursive; got {:?}",
+            resp.ty
+        );
     }
 
     #[test]

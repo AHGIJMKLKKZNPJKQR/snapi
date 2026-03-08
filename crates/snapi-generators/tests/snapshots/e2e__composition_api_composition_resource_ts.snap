@@ -22,7 +22,7 @@ export class CompositionResource {
     const url = new URL(`${this.baseUrl}/api/composition/${compositionId}`).toString();
     const response = await fetch(url, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return;

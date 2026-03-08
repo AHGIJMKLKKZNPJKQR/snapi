@@ -1,0 +1,29 @@
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/Status'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+components:
+  schemas:
+    Status:
+      type: string
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string

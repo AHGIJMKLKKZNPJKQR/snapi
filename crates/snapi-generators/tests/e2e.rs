@@ -202,8 +202,24 @@ fn composition_api() {
         extract_text(&tree, "src/models.ts")
     );
     insta::assert_snapshot!(
+        "composition_api_client_ts",
+        extract_text(&tree, "src/client.ts")
+    );
+    insta::assert_snapshot!(
         "composition_api_composition_resource_ts",
         extract_text(&tree, "src/resources/composition.ts")
+    );
+    insta::assert_snapshot!(
+        "composition_api_control_request_resource_ts",
+        extract_text(&tree, "src/resources/control_request.ts")
+    );
+    insta::assert_snapshot!(
+        "composition_api_register_request_resource_ts",
+        extract_text(&tree, "src/resources/register_request.ts")
+    );
+    insta::assert_snapshot!(
+        "composition_api_update_request_resource_ts",
+        extract_text(&tree, "src/resources/update_request.ts")
     );
 
     run_tsx_test(&tree, include_str!("e2e_ts/composition_api_test.ts"));

@@ -2,10 +2,24 @@
 source: crates/snapi-generators/tests/e2e.rs
 expression: "extract_text(&tree, \"src/models.ts\")"
 ---
+export type AacRtpMode =
+  | "low_bitrate"
+  | "high_bitrate";
+
 export interface ApiError {
   http_status_code: number;
   message: string;
 }
+
+export type AspectRatio = string;
+
+export type AudioChannels =
+  | "mono"
+  | "stereo";
+
+export type AudioMixingStrategy =
+  | "sum_clip"
+  | "sum_scale";
 
 export interface AudioScene {
   inputs: AudioSceneInput[];
@@ -13,8 +27,20 @@ export interface AudioScene {
 
 export interface AudioSceneInput {
   input_id: string;
+  /** (**default=`1.0`**) float in `[0, 2]` range representing input volume */
   volume?: number | null;
 }
+
+export interface BoxShadow {
+  blur_radius?: number | null;
+  color?: null | string;
+  offset_x?: number | null;
+  offset_y?: number | null;
+}
+
+export type Component = { id?: null | string; input_id: string; type: "input_stream" } | { background_color?: null | string; border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; children?: Component[] | null; direction?: null | ViewDirection; height?: number | null; id?: null | string; left?: number | null; overflow?: null | Overflow; padding?: number | null; padding_bottom?: number | null; padding_horizontal?: number | null; padding_left?: number | null; padding_right?: number | null; padding_top?: number | null; padding_vertical?: number | null; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; width?: number | null; type: "view" } | { align?: null | HorizontalAlign; background_color?: null | string; color?: null | string; font_family?: string | null; font_size: number; height?: number | null; id?: null | string; line_height?: number | null; max_height?: number | null; max_width?: number | null; style?: null | TextStyle; text: string; weight?: null | TextWeight; width?: number | null; wrap?: null | TextWrapMode; type: "text" } | { background_color?: null | string; children?: Component[] | null; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; margin?: number | null; padding?: number | null; tile_aspect_ratio?: null | string; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "tiles" } | { border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; child: Component; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; left?: number | null; mode?: null | RescaleMode; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "rescaler" };
+
+export type ComponentId = string;
 
 export interface CompositionCreatedResponse {
   api_url: string;
@@ -24,48 +50,656 @@ export interface CompositionCreatedResponse {
 export type CompositionId = string;
 
 export interface CreateCompositionRequest {
-  /** If true, outputs will immediately start producing audio and video. */
+  /** If true, outputs will immediately start producing audio and video.
+If false, call `POST /api/composition/{composition_id}/start` to start the composition. */
   autostart?: boolean;
 }
 
+export type EasingFunction = { function_name: "linear" } | { function_name: "bounce" } | { function_name: "cubic_bezier"; points: number[] };
+
+export interface FontUpload {
+  font: string;
+}
+
+export type Framerate = string | number;
+
+export type H264EncoderPreset =
+  | "ultrafast"
+  | "superfast"
+  | "veryfast"
+  | "faster"
+  | "fast"
+  | "medium"
+  | "slow"
+  | "slower"
+  | "veryslow"
+  | "placebo";
+
+export type HlsAudioEncoderOptions = { sample_rate?: number | null; type: "aac" };
+
+export interface HlsInput {
+  /** Offset in milliseconds relative to the pipeline start (start request). If the offset is
+not defined then the stream will be synchronized based on the delivery time of the initial
+frames. */
+  offset_ms?: number | null;
+  /** (**default=`false`**) If input is required and the stream is not delivered
+on time, then Smelter will delay producing output frames. */
+  required?: boolean | null;
+  /** URL to HLS playlist */
+  url: string;
+}
+
+export interface HlsOutput {
+  audio?: null | OutputHlsAudioOptions;
+  /** Number of segments kept in the playlist. When the limit is reached the oldest segment is removed.
+If not specified, no segments will removed. */
+  max_playlist_size?: number | null;
+  /** Path to output HLS playlist. */
+  path: string;
+  video?: null | OutputHlsVideoOptions;
+}
+
+export type HlsVideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "vulkan_h264";
+
+export type HlsVideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+
+export type HorizontalAlign =
+  | "left"
+  | "right"
+  | "justified"
+  | "center";
+
+export type ImageSpec = { asset_type: "png"; url?: string | null } | { asset_type: "jpeg"; url?: string | null } | { asset_type: "svg"; resolution?: null | Resolution; url?: string | null } | { asset_type: "gif"; url?: string | null } | { asset_type: "auto"; url?: string | null };
+
+export type InputHlsCodec =
+  | "h264";
+
 export type InputId = string;
 
+export type InputMp4Codec =
+  | "h264";
+
+export type InputRtmpCodec =
+  | "h264";
+
+export type InputRtpAudioOptions = { decoder: "opus" } | { audio_specific_config: string; decoder: "aac"; rtp_mode?: null | AacRtpMode };
+
+export interface InputRtpVideoOptions {
+  decoder: RtpVideoDecoderOptions;
+}
+
+export interface InputStream {
+  id?: null | string;
+  input_id: string;
+}
+
+export interface InputWhepVideoOptions {
+  decoder_preferences?: WhepVideoDecoderOptions[] | null;
+}
+
+export interface InputWhipVideoOptions {
+  decoder_preferences?: WhipVideoDecoderOptions[] | null;
+}
+
+export type Interpolation =
+  | "linear"
+  | "spring";
+
+export type Mp4AudioEncoderOptions = { sample_rate?: number | null; type: "aac" };
+
 export interface Mp4Input {
+  /** (**default=`false`**) If input should be played in the loop. <span class="badge badge--primary">Added in v0.4.0</span> */
   loop?: boolean | null;
+  /** Offset in milliseconds relative to the pipeline start (start request). If offset is
+not defined then stream is synchronized based on the first frames delivery time. */
   offset_ms?: number | null;
+  /** (**default=`false`**) If input is required and frames are not processed
+on time, then Smelter will delay producing output frames. */
   required?: boolean | null;
+  /** URL of the MP4 file. */
   url?: string | null;
 }
 
 export interface Mp4Output {
+  audio?: null | OutputMp4AudioOptions;
+  /** Raw FFmpeg muxer options. See [docs](https://ffmpeg.org/ffmpeg-formats.html) for more. */
+  ffmpeg_options?: Record<string, string> | null;
+  /** Path to output MP4 file. */
   path: string;
+  video?: null | OutputMp4VideoOptions;
+}
+
+export type Mp4VideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "vulkan_h264";
+
+export type Mp4VideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+
+export type OpusEncoderPreset =
+  | "quality"
+  | "voip"
+  | "lowest_latency";
+
+export interface OutputEndCondition {
+  /** Terminate output stream if all the input streams finish. In particular, output stream will **be** terminated if no inputs were ever connected. */
+  all_inputs?: boolean | null;
+  /** Terminate output stream if all the input streams from the list are finished. */
+  all_of?: string[] | null;
+  /** Terminate output stream if any of the input streams ends. This includes streams added after the output was registered. In particular, output stream will **not be** terminated if no inputs were ever connected. */
+  any_input?: boolean | null;
+  /** Terminate output stream if any of the input streams from the list are finished. */
+  any_of?: string[] | null;
+}
+
+export interface OutputHlsAudioOptions {
+  channels?: null | AudioChannels;
+  encoder: { sample_rate?: number | null; type: "aac" };
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputHlsVideoOptions {
+  encoder: { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
 }
 
 export type OutputId = string;
 
-export type RegisterInput = { offset_ms?: number | null; port: number; required?: boolean | null; type: "rtp_stream" } | { loop?: boolean | null; offset_ms?: number | null; required?: boolean | null; url?: string | null; type: "mp4" };
+export interface OutputMp4AudioOptions {
+  channels?: null | AudioChannels;
+  encoder: { sample_rate?: number | null; type: "aac" };
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
 
-export type RegisterOutput = { ip?: string | null; port: number; type: "rtp_stream" } | { path: string; type: "mp4" };
+export interface OutputMp4VideoOptions {
+  encoder: { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputRtmpClientAudioOptions {
+  channels?: null | AudioChannels;
+  encoder: { sample_rate?: number | null; type: "aac" };
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputRtmpClientVideoOptions {
+  encoder: { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputRtpAudioOptions {
+  channels?: null | AudioChannels;
+  encoder: { expected_packet_loss?: number | null; forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" };
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputRtpVideoOptions {
+  encoder: { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputWhepAudioOptions {
+  channels?: null | AudioChannels;
+  encoder: { expected_packet_loss?: number | null; forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" };
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputWhepVideoOptions {
+  encoder: { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputWhipAudioOptions {
+  channels?: null | AudioChannels;
+  /** Codec preferences list. */
+  encoder_preferences?: ({ forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" } | { type: "any" })[] | null;
+  initial: AudioScene;
+  mixing_strategy?: null | AudioMixingStrategy;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export interface OutputWhipVideoOptions {
+  /** Codec preferences list. */
+  encoder_preferences?: ({ bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" } | { type: "any" })[] | null;
+  initial: VideoScene;
+  resolution: Resolution;
+  send_eos_when?: null | OutputEndCondition;
+}
+
+export type Overflow =
+  | "visible"
+  | "hidden"
+  | "fit";
+
+export type PixelFormat =
+  | "yuv420p"
+  | "yuv422p"
+  | "yuv444p";
+
+export type PortOrPortRange = string | number;
+
+export type RgbaColor = string;
+
+export type RegisterInput = { audio?: null | { decoder: "opus" } | { audio_specific_config: string; decoder: "aac"; rtp_mode?: null | AacRtpMode }; offset_ms?: number | null; port: string | number; required?: boolean | null; transport_protocol?: null | TransportProtocol; video?: null | InputRtpVideoOptions; type: "rtp_stream" } | { app: string; offset_ms?: number | null; required?: boolean | null; stream_key: string; type: "rtmp_server" } | { loop?: boolean | null; offset_ms?: number | null; required?: boolean | null; url?: string | null; type: "mp4" } | { bearer_token?: string | null; endpoint_override?: string | null; offset_ms?: number | null; required?: boolean | null; video?: null | InputWhipVideoOptions; type: "whip_server" } | { bearer_token?: string | null; endpoint_url: string; offset_ms?: number | null; required?: boolean | null; video?: null | InputWhepVideoOptions; type: "whep_client" } | { offset_ms?: number | null; required?: boolean | null; url: string; type: "hls" };
+
+export type RegisterOutput = { audio?: null | OutputRtpAudioOptions; ip?: string | null; port: string | number; transport_protocol?: null | TransportProtocol; video?: null | OutputRtpVideoOptions; type: "rtp_stream" } | { audio?: null | OutputRtmpClientAudioOptions; url: string; video?: null | OutputRtmpClientVideoOptions; type: "rtmp_client" } | { audio?: null | OutputMp4AudioOptions; ffmpeg_options?: Record<string, string> | null; path: string; video?: null | OutputMp4VideoOptions; type: "mp4" } | { audio?: null | OutputWhipAudioOptions; bearer_token?: string | null; endpoint_url: string; video?: null | OutputWhipVideoOptions; type: "whip_client" } | { audio?: null | OutputWhepAudioOptions; bearer_token?: string | null; video?: null | OutputWhepVideoOptions; type: "whep_server" } | { audio?: null | OutputHlsAudioOptions; max_playlist_size?: number | null; path: string; video?: null | OutputHlsVideoOptions; type: "hls" };
+
+export type RescaleMode =
+  | "fit"
+  | "fill";
+
+export interface Rescaler {
+  border_color?: null | string;
+  /** (**default=`0.0`**) Radius of a rounded corner. */
+  border_radius?: number | null;
+  /** (**default=`0.0`**) Border width. */
+  border_width?: number | null;
+  /** Distance in pixels between the bottom edge of this component and the bottom edge of its
+parent (including a border). If this field is defined, this element will be absolutely
+positioned, instead of being laid out by its parent. */
+  bottom?: number | null;
+  /** List of box shadows. */
+  box_shadow?: BoxShadow[] | null;
+  child: { id?: null | string; input_id: string; type: "input_stream" } | { background_color?: null | string; border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; children?: Component[] | null; direction?: null | ViewDirection; height?: number | null; id?: null | string; left?: number | null; overflow?: null | Overflow; padding?: number | null; padding_bottom?: number | null; padding_horizontal?: number | null; padding_left?: number | null; padding_right?: number | null; padding_top?: number | null; padding_vertical?: number | null; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; width?: number | null; type: "view" } | { align?: null | HorizontalAlign; background_color?: null | string; color?: null | string; font_family?: string | null; font_size: number; height?: number | null; id?: null | string; line_height?: number | null; max_height?: number | null; max_width?: number | null; style?: null | TextStyle; text: string; weight?: null | TextWeight; width?: number | null; wrap?: null | TextWrapMode; type: "text" } | { background_color?: null | string; children?: Component[] | null; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; margin?: number | null; padding?: number | null; tile_aspect_ratio?: null | string; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "tiles" } | { type: "rescaler" };
+  /** Height of a component in pixels (without a border). Exact behavior might be different
+based on the parent component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  height?: number | null;
+  horizontal_align?: null | HorizontalAlign;
+  id?: null | string;
+  /** Distance in pixels between this component's left edge and its parent's left edge (including a border).
+If this field is defined, this element will be absolutely positioned, instead of being
+laid out by its parent. */
+  left?: number | null;
+  mode?: null | RescaleMode;
+  /** Distance in pixels between this component's right edge and its parent's right edge.
+If this field is defined, this element will be absolutely positioned, instead of being
+laid out by its parent. */
+  right?: number | null;
+  /** Rotation of a component in degrees. If this field is defined, this element will be
+absolutely positioned, instead of being laid out by its parent. */
+  rotation?: number | null;
+  /** Distance in pixels between this component's top edge and its parent's top edge (including a border).
+If this field is defined, then the component will ignore a layout defined by its parent. */
+  top?: number | null;
+  transition?: null | Transition;
+  vertical_align?: null | VerticalAlign;
+  /** Width of a component in pixels (without a border). Exact behavior might be different
+based on the parent component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  width?: number | null;
+}
 
 export interface Resolution {
+  /** Height in pixels. */
   height: number;
+  /** Width in pixels. */
   width: number;
 }
 
 export type Response = { bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>;
 
-export interface RtpInput {
+export type RtmpClientAudioEncoderOptions = { sample_rate?: number | null; type: "aac" };
+
+export type RtmpClientVideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+
+export interface RtmpInput {
+  /** The RTMP application name.
+This is the first path segment of the RTMP stream URL that Smelter listens on for incoming streams.
+Format: `rtmp://<ip_address>:<port>/<app>/<stream_key` */
+  app: string;
+  /** Offset in milliseconds relative to the pipeline start (start request). If the offset is
+not defined then the stream will be synchronized based on the delivery time of the initial
+frames. */
   offset_ms?: number | null;
-  port: number;
+  /** (**default=`false`**) If input is required and the stream is not delivered
+on time, then Smelter will delay producing output frames. */
   required?: boolean | null;
+  /** The RTMP stream key.
+This is the second path segment of the RTMP stream URL that Smelter listens on for incoming streams.
+Format: `rtmp://<ip_address>:<port>/<app>/<stream_key` */
+  stream_key: string;
+}
+
+export interface RtmpOutput {
+  audio?: null | OutputRtmpClientAudioOptions;
+  /** RTMP endpoint url. */
+  url: string;
+  video?: null | OutputRtmpClientVideoOptions;
+}
+
+export type RtmpVideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "vulkan_h264";
+
+export type RtpAudioEncoderOptions = { expected_packet_loss?: number | null; forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" };
+
+export interface RtpInput {
+  audio?: null | { decoder: "opus" } | { audio_specific_config: string; decoder: "aac"; rtp_mode?: null | AacRtpMode };
+  /** Offset in milliseconds relative to the pipeline start (start request). If the offset is
+not defined then the stream will be synchronized based on the delivery time of the initial
+frames. */
+  offset_ms?: number | null;
+  port: string | number;
+  /** (**default=`false`**) If input is required and the stream is not delivered
+on time, then Smelter will delay producing output frames. */
+  required?: boolean | null;
+  transport_protocol?: null | TransportProtocol;
+  video?: null | InputRtpVideoOptions;
 }
 
 export interface RtpOutput {
+  audio?: null | OutputRtpAudioOptions;
+  /** IP address to which RTP packets should be sent. This field is only valid if `transport_protocol` field is set to `udp`. */
   ip?: string | null;
-  port: number;
+  port: string | number;
+  transport_protocol?: null | TransportProtocol;
+  video?: null | OutputRtpVideoOptions;
+}
+
+export type RtpVideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "ffmpeg_vp8"
+  | "ffmpeg_vp9"
+  | "vulkan_h264";
+
+export type RtpVideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+
+export type ShaderParam = { type: "f32"; value: number } | { type: "u32"; value: number } | { type: "i32"; value: number } | { type: "list"; value: ShaderParam[] } | { type: "struct"; value: { field_name: string }[] };
+
+export interface ShaderParamStructField {
+  field_name: string;
+}
+
+export interface ShaderSpec {
+  /** Shader source code. [Learn more.](../../concept/shaders) */
+  source: string;
+}
+
+export interface Text {
+  align?: null | HorizontalAlign;
+  background_color?: null | string;
+  color?: null | string;
+  /** (**default=`"Verdana"`**) Font family. Provide [family-name](https://www.w3.org/TR/2018/REC-css-fonts-3-20180920/#family-name-value)
+for a specific font. "generic-family" values like e.g. "sans-serif" will not work. */
+  font_family?: string | null;
+  /** Font size in pixels. */
+  font_size: number;
+  /** Height of a texture that text will be rendered on. If not provided, the resulting texture
+will be sized based on the defined text but limited to `max_height` value.
+It's an error to provide `height` if `width` is not defined. */
+  height?: number | null;
+  id?: null | string;
+  /** Distance between lines in pixels. Defaults to the value of the `font_size` property. */
+  line_height?: number | null;
+  /** (**default=`4320`**) Maximal `height`. Limits the height of the texture that the text will be rendered on.
+Value is ignored if height is defined. */
+  max_height?: number | null;
+  /** (**default=`7682`**) Maximal `width`. Limits the width of the texture that the text will be rendered on.
+Value is ignored if `width` is defined. */
+  max_width?: number | null;
+  style?: null | TextStyle;
+  /** Text that will be rendered. */
+  text: string;
+  weight?: null | TextWeight;
+  /** Width of a texture that text will be rendered on. If not provided, the resulting texture
+will be sized based on the defined text but limited to `max_width` value. */
+  width?: number | null;
+  wrap?: null | TextWrapMode;
+}
+
+export type TextStyle =
+  | "normal"
+  | "italic"
+  | "oblique";
+
+export type TextWeight =
+  | "thin"
+  | "extra_light"
+  | "light"
+  | "normal"
+  | "medium"
+  | "semi_bold"
+  | "bold"
+  | "extra_bold"
+  | "black";
+
+export type TextWrapMode =
+  | "none"
+  | "glyph"
+  | "word";
+
+export interface Tiles {
+  background_color?: null | string;
+  /** List of component's children. */
+  children?: ({ id?: null | string; input_id: string; type: "input_stream" } | { background_color?: null | string; border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; children?: Component[] | null; direction?: null | ViewDirection; height?: number | null; id?: null | string; left?: number | null; overflow?: null | Overflow; padding?: number | null; padding_bottom?: number | null; padding_horizontal?: number | null; padding_left?: number | null; padding_right?: number | null; padding_top?: number | null; padding_vertical?: number | null; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; width?: number | null; type: "view" } | { align?: null | HorizontalAlign; background_color?: null | string; color?: null | string; font_family?: string | null; font_size: number; height?: number | null; id?: null | string; line_height?: number | null; max_height?: number | null; max_width?: number | null; style?: null | TextStyle; text: string; weight?: null | TextWeight; width?: number | null; wrap?: null | TextWrapMode; type: "text" } | { type: "tiles" } | { border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; child: Component; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; left?: number | null; mode?: null | RescaleMode; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "rescaler" })[] | null;
+  /** Height of a component in pixels. Exact behavior might be different based on the parent
+component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  height?: number | null;
+  horizontal_align?: null | HorizontalAlign;
+  id?: null | string;
+  /** (**default=`0`**) Margin of each tile in pixels. */
+  margin?: number | null;
+  /** (**default=`0`**) Padding on each tile in pixels. */
+  padding?: number | null;
+  tile_aspect_ratio?: null | string;
+  transition?: null | Transition;
+  vertical_align?: null | VerticalAlign;
+  /** Width of a component in pixels. Exact behavior might be different based on the parent
+component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  width?: number | null;
+}
+
+export interface Transition {
+  /** Duration of a transition in milliseconds. */
+  duration_ms: number;
+  easing_function?: null | { function_name: "linear" } | { function_name: "bounce" } | { function_name: "cubic_bezier"; points: number[] };
+  /** (**default=`false`**) On scene update, if there is already a transition in progress,
+it will be interrupted and the new transition will start from the current state. */
+  should_interrupt?: boolean | null;
+}
+
+export type TransportProtocol =
+  | "udp"
+  | "tcp_server";
+
+export interface UnregisterInput {
+  /** Time in milliseconds when this request should be applied. Value `0` represents
+time of the start request. */
+  schedule_time_ms?: number | null;
+}
+
+export interface UnregisterOutput {
+  /** Time in milliseconds when this request should be applied. Value `0` represents
+time of the start request. */
+  schedule_time_ms?: number | null;
+}
+
+export interface UnregisterRenderer {
+  /** Time in milliseconds when this request should be applied. Value `0` represents
+time of the start request. */
+  schedule_time_ms?: number | null;
 }
 
 export interface UpdateOutputRequest {
   audio?: null | AudioScene;
   schedule_time_ms?: number | null;
+  video?: null | VideoScene;
 }
+
+export type VerticalAlign =
+  | "top"
+  | "center"
+  | "bottom"
+  | "justified";
+
+export type VideoEncoderBitrate = number | { average_bitrate: number; max_bitrate: number };
+
+export interface VideoScene {
+  root: { id?: null | string; input_id: string; type: "input_stream" } | { background_color?: null | string; border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; children?: Component[] | null; direction?: null | ViewDirection; height?: number | null; id?: null | string; left?: number | null; overflow?: null | Overflow; padding?: number | null; padding_bottom?: number | null; padding_horizontal?: number | null; padding_left?: number | null; padding_right?: number | null; padding_top?: number | null; padding_vertical?: number | null; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; width?: number | null; type: "view" } | { align?: null | HorizontalAlign; background_color?: null | string; color?: null | string; font_family?: string | null; font_size: number; height?: number | null; id?: null | string; line_height?: number | null; max_height?: number | null; max_width?: number | null; style?: null | TextStyle; text: string; weight?: null | TextWeight; width?: number | null; wrap?: null | TextWrapMode; type: "text" } | { background_color?: null | string; children?: Component[] | null; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; margin?: number | null; padding?: number | null; tile_aspect_ratio?: null | string; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "tiles" } | { border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; child: Component; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; left?: number | null; mode?: null | RescaleMode; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "rescaler" };
+}
+
+export interface View {
+  background_color?: null | string;
+  border_color?: null | string;
+  /** (**default=`0.0`**) Radius of a rounded corner. */
+  border_radius?: number | null;
+  /** (**default=`0.0`**) Border width. */
+  border_width?: number | null;
+  /** Distance in pixels between the bottom edge of this component and the bottom edge of its
+parent (including a border). If this field is defined, this element will be absolutely
+positioned, instead of being laid out by its parent. */
+  bottom?: number | null;
+  /** List of box shadows. */
+  box_shadow?: BoxShadow[] | null;
+  /** List of component's children. */
+  children?: ({ id?: null | string; input_id: string; type: "input_stream" } | { type: "view" } | { align?: null | HorizontalAlign; background_color?: null | string; color?: null | string; font_family?: string | null; font_size: number; height?: number | null; id?: null | string; line_height?: number | null; max_height?: number | null; max_width?: number | null; style?: null | TextStyle; text: string; weight?: null | TextWeight; width?: number | null; wrap?: null | TextWrapMode; type: "text" } | { background_color?: null | string; children?: Component[] | null; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; margin?: number | null; padding?: number | null; tile_aspect_ratio?: null | string; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "tiles" } | { border_color?: null | string; border_radius?: number | null; border_width?: number | null; bottom?: number | null; box_shadow?: BoxShadow[] | null; child: Component; height?: number | null; horizontal_align?: null | HorizontalAlign; id?: null | string; left?: number | null; mode?: null | RescaleMode; right?: number | null; rotation?: number | null; top?: number | null; transition?: null | Transition; vertical_align?: null | VerticalAlign; width?: number | null; type: "rescaler" })[] | null;
+  direction?: null | ViewDirection;
+  /** Height of a component in pixels (without a border). Exact behavior might be different
+based on the parent component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  height?: number | null;
+  id?: null | string;
+  /** Distance in pixels between this component's left edge and its parent's left edge (including a border).
+If this field is defined, this element will be absolutely positioned, instead of being
+laid out by its parent. */
+  left?: number | null;
+  overflow?: null | Overflow;
+  /** (**default=`0.0`**) Padding for all sides of the component. */
+  padding?: number | null;
+  /** (**default=`0.0`**) Padding on bottom side in pixels. */
+  padding_bottom?: number | null;
+  /** (**default=`0.0`**) Padding for the left and right of the component. */
+  padding_horizontal?: number | null;
+  /** (**default=`0.0`**) Padding on left side in pixels. */
+  padding_left?: number | null;
+  /** (**default=`0.0`**) Padding on right side in pixels. */
+  padding_right?: number | null;
+  /** (**default=`0.0`**) Padding on top side in pixels. */
+  padding_top?: number | null;
+  /** (**default=`0.0`**) Padding for the top and bottom of the component. */
+  padding_vertical?: number | null;
+  /** Distance in pixels between this component's right edge and its parent's right edge.
+If this field is defined, this element will be absolutely positioned, instead of being
+laid out by its parent. */
+  right?: number | null;
+  /** Rotation of a component in degrees. If this field is defined, this element will be
+absolutely positioned, instead of being laid out by its parent. */
+  rotation?: number | null;
+  /** Distance in pixels between this component's top edge and its parent's top edge (including a border).
+If this field is defined, then the component will ignore a layout defined by its parent. */
+  top?: number | null;
+  transition?: null | Transition;
+  /** Width of a component in pixels (without a border). Exact behavior might be different
+based on the parent component:
+- If the parent component is a layout, check sections "Absolute positioning" and "Static
+  positioning" of that component.
+- If the parent component is not a layout, then this field is required. */
+  width?: number | null;
+}
+
+export type ViewDirection =
+  | "row"
+  | "column";
+
+export type WhepAudioEncoderOptions = { expected_packet_loss?: number | null; forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" };
+
+export interface WhepInput {
+  /** Optional Bearer token for auth */
+  bearer_token?: string | null;
+  /** WHEP server endpoint URL */
+  endpoint_url: string;
+  /** Offset in milliseconds relative to the pipeline start (start request). */
+  offset_ms?: number | null;
+  /** (**default=`false`**) If input is required and the stream is not delivered
+on time, then Smelter will delay producing output frames. */
+  required?: boolean | null;
+  video?: null | InputWhepVideoOptions;
+}
+
+export interface WhepOutput {
+  audio?: null | OutputWhepAudioOptions;
+  /** Token used for authentication in WHEP protocol.
+If not provided, the bearer token is not required to establish the session. */
+  bearer_token?: string | null;
+  video?: null | OutputWhepVideoOptions;
+}
+
+export type WhepVideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "ffmpeg_vp8"
+  | "ffmpeg_vp9"
+  | "vulkan_h264"
+  | "any";
+
+export type WhepVideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" };
+
+export type WhipAudioEncoderOptions = { forward_error_correction?: boolean | null; preset?: null | OpusEncoderPreset; sample_rate?: number | null; type: "opus" } | { type: "any" };
+
+export interface WhipInput {
+  /** Token used for authentication in WHIP protocol. If not provided, the random value
+will be generated and returned in the response. */
+  bearer_token?: string | null;
+  /** Internal use only.
+Overrides whip endpoint id which is used when referencing the input via whip server.
+If not provided, it defaults to input id. */
+  endpoint_override?: string | null;
+  /** Offset in milliseconds relative to the pipeline start (start request). If the offset is
+not defined then the stream will be synchronized based on the delivery time of the initial
+frames. */
+  offset_ms?: number | null;
+  /** (**default=`false`**) If input is required and the stream is not delivered
+on time, then Smelter will delay producing output frames. */
+  required?: boolean | null;
+  video?: null | InputWhipVideoOptions;
+}
+
+export interface WhipOutput {
+  audio?: null | OutputWhipAudioOptions;
+  bearer_token?: string | null;
+  /** WHIP server endpoint */
+  endpoint_url: string;
+  video?: null | OutputWhipVideoOptions;
+}
+
+export type WhipVideoDecoderOptions =
+  | "ffmpeg_h264"
+  | "ffmpeg_vp8"
+  | "ffmpeg_vp9"
+  | "vulkan_h264"
+  | "any";
+
+export type WhipVideoEncoderOptions = { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; preset?: null | H264EncoderPreset; type: "ffmpeg_h264" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; type: "ffmpeg_vp8" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; ffmpeg_options?: Record<string, string> | null; keyframe_interval_ms?: number | null; pixel_format?: null | PixelFormat; type: "ffmpeg_vp9" } | { bitrate?: null | number | { average_bitrate: number; max_bitrate: number }; keyframe_interval_ms?: number | null; type: "vulkan_h264" } | { type: "any" };

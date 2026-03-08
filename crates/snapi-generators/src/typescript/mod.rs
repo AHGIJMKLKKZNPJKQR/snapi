@@ -4,7 +4,7 @@ pub mod fetch;
 use indexmap::IndexMap;
 use snapi_core::ir::operation::IrOperation;
 use snapi_core::ir::types::{IrObject, IrType};
-use snapi_core::utils::case::{to_camel_case, to_pascal_case, to_snake_case};
+use snapi_core::utils::case::{to_camel_case, to_pascal_case};
 
 pub fn render_type(ty: &IrType) -> String {
     match ty {
@@ -103,7 +103,7 @@ pub fn render_models(schemas: &IndexMap<String, IrType>) -> String {
                 let variants: Vec<String> = e
                     .variants
                     .iter()
-                    .map(|v| format!("  | \"{}\"", to_snake_case(&v.name).to_uppercase()))
+                    .map(|v| format!("  | \"{}\"", v.name))
                     .collect();
                 output.push_str(&variants.join("\n"));
                 output.push_str(";\n\n");
@@ -254,11 +254,13 @@ pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
             }
             code.push_str("    const response = await fetch(url, {\n");
             code.push_str(&format!("      method: \"{}\",\n", method_str));
-            code.push_str(
-                "      headers: { \"Content-Type\": \"application/json\", ...this.headers },\n",
-            );
             if has_body {
+                code.push_str(
+                    "      headers: { \"Content-Type\": \"application/json\", ...this.headers },\n",
+                );
                 code.push_str("      body: JSON.stringify(body),\n");
+            } else {
+                code.push_str("      headers: { ...this.headers },\n");
             }
             code.push_str("    });\n");
             code.push_str("    if (!response.ok) throw new Error(`HTTP ${response.status}`);\n");
@@ -282,6 +284,10 @@ fn collect_type_names(ty: &IrType, names: &mut Vec<String>) {
         IrType::Object(o) => {
             if let Some(name) = &o.name {
                 names.push(to_pascal_case(name));
+            } else {
+                for field in o.fields.values() {
+                    collect_type_names(&field.ty, names);
+                }
             }
         }
         IrType::Enum(e) => names.push(to_pascal_case(&e.name)),
@@ -387,5 +393,62 @@ mod tests {
         // Optional(Union(A, B)) → A | B | null (union absorption, no extra parens needed)
         let ty = IrType::Optional(Box::new(IrType::Union(vec![str_ty(), num_ty()])));
         assert_eq!(render_type(&ty), "string | number | null");
+    }
+
+    #[test]
+    fn enum_renders_original_string_values() {
+        use snapi_core::ir::types::{IrEnum, IrEnumVariant};
+        let ty = IrType::Enum(IrEnum {
+            name: "Status".to_string(),
+            variants: vec![
+                IrEnumVariant {
+                    name: "active".to_string(),
+                    ty: str_ty(),
+                },
+                IrEnumVariant {
+                    name: "pending".to_string(),
+                    ty: str_ty(),
+                },
+            ],
+            discriminator: None,
+        });
+        let mut schemas = IndexMap::new();
+        schemas.insert("Status".to_string(), ty);
+        let output = render_models(&schemas);
+        assert!(
+            output.contains("\"active\""),
+            "must render original value; got:\n{output}"
+        );
+        assert!(
+            output.contains("\"pending\""),
+            "must render original value; got:\n{output}"
+        );
+        assert!(
+            !output.contains("ACTIVE"),
+            "must not transform to SCREAMING_SNAKE_CASE; got:\n{output}"
+        );
+    }
+
+    #[test]
+    fn collect_type_names_recurses_into_unnamed_object_fields() {
+        use snapi_core::ir::types::IrField;
+        // Unnamed inline object whose field references a named type — the named
+        // type must be collected so the generator can emit the correct import.
+        let mut fields = IndexMap::new();
+        fields.insert(
+            "resolution".to_string(),
+            IrField {
+                ty: IrType::Object(named_object("Resolution")),
+                required: true,
+                description: None,
+            },
+        );
+        let inline_obj = IrType::Object(IrObject { name: None, fields });
+        let mut names = vec![];
+        collect_type_names(&inline_obj, &mut names);
+        assert!(
+            names.contains(&"Resolution".to_string()),
+            "collect_type_names must recurse into unnamed object fields; got {names:?}"
+        );
     }
 }

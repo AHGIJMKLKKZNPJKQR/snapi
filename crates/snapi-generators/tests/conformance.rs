@@ -628,7 +628,7 @@ fn composition_api_register_input_is_union() {
         ir.schemas["RegisterInput"]
     );
     if let IrType::Union(variants) = &ir.schemas["RegisterInput"] {
-        assert_eq!(variants.len(), 2, "RegisterInput should have 2 variants");
+        assert_eq!(variants.len(), 6, "RegisterInput should have 6 variants");
     }
 }
 
@@ -738,5 +738,37 @@ fn composition_api_models_contain_no_bare_enum_identifier() {
     assert!(
         !models.contains("| Enum"),
         "models.ts contains bare Enum identifier in union:\n{models}"
+    );
+}
+
+#[test]
+fn composition_api_bodyless_methods_omit_content_type() {
+    let ir = load_ir("composition_api.json");
+    let tree = FetchGenerator
+        .generate(&ir, &default_config("composition-sdk"))
+        .unwrap();
+
+    // deleteComposition has no body; createComposition does → exactly one Content-Type in file
+    let composition = extract_text(&tree, "src/resources/composition.ts");
+    let ct_count = composition.matches("Content-Type").count();
+    assert_eq!(
+        ct_count,
+        1,
+        "composition.ts should have Content-Type only for createComposition (has body), not deleteComposition:\n{composition}"
+    );
+
+    // start and reset have no body at all → no Content-Type header
+    let control = extract_text(&tree, "src/resources/control_request.ts");
+    assert!(
+        !control.contains("Content-Type"),
+        "control_request.ts bodyless methods must not set Content-Type:\n{control}"
+    );
+
+    // requestKeyframe has no body; updateOutput does → exactly one Content-Type in file
+    let update = extract_text(&tree, "src/resources/update_request.ts");
+    let update_ct_count = update.matches("Content-Type").count();
+    assert_eq!(
+        update_ct_count, 1,
+        "update_request.ts should have Content-Type only for updateOutput (has body):\n{update}"
     );
 }

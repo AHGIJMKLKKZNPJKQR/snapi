@@ -20,10 +20,10 @@ export interface PaymentProcessedEvent {
 }
 
 export type PaymentStatus =
-  | "PENDING"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "REFUNDED";
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "refunded";
 
 export interface UserCreatedEvent {
   email: string;

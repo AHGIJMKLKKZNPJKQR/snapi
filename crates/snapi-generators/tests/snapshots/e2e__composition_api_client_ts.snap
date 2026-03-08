@@ -1,0 +1,37 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/client.ts\")"
+---
+import { CompositionResource } from "./resources/composition";
+import { RegisterRequestResource } from "./resources/register_request";
+import { UnregisterRequestResource } from "./resources/unregister_request";
+import { UpdateRequestResource } from "./resources/update_request";
+import { ControlRequestResource } from "./resources/control_request";
+import { WhipWhepResource } from "./resources/whip_whep";
+
+export interface ApiClientOptions {
+  baseUrl: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+/** Composition API */
+export class ApiClient {
+  readonly composition: CompositionResource;
+  readonly registerRequest: RegisterRequestResource;
+  readonly unregisterRequest: UnregisterRequestResource;
+  readonly updateRequest: UpdateRequestResource;
+  readonly controlRequest: ControlRequestResource;
+  readonly whipWhep: WhipWhepResource;
+
+  constructor(private options: ApiClientOptions) {
+    const headers: Record<string, string> = { ...options.headers };
+    if (options.apiKey) headers["Authorization"] = `Bearer ${options.apiKey}`;
+    this.composition = new CompositionResource(options.baseUrl, headers);
+    this.registerRequest = new RegisterRequestResource(options.baseUrl, headers);
+    this.unregisterRequest = new UnregisterRequestResource(options.baseUrl, headers);
+    this.updateRequest = new UpdateRequestResource(options.baseUrl, headers);
+    this.controlRequest = new ControlRequestResource(options.baseUrl, headers);
+    this.whipWhep = new WhipWhepResource(options.baseUrl, headers);
+  }
+}

@@ -12,7 +12,7 @@ export class NodesResource {
     const url = new URL(`${this.baseUrl}/nodes`).toString();
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<TreeNode[]>;
@@ -23,7 +23,7 @@ export class NodesResource {
     const url = new URL(`${this.baseUrl}/nodes/${id}`).toString();
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...this.headers },
+      headers: { ...this.headers },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json() as Promise<TreeNode>;
