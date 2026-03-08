@@ -53,5 +53,3 @@ jobs:
         run: npm ci
       - name: Test
         run: cargo test
-        env:
-          PATH: ${{ github.workspace }}/node_modules/.bin:${{ env.PATH }}
