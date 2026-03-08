@@ -1,0 +1,64 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export interface Article {
+  created_at: string;
+  updated_at?: string | null;
+  author?: { id?: string; name?: string };
+  body: string;
+  id: string;
+  tags?: string[];
+  title: string;
+}
+
+export interface ArticleResult {
+  id: string;
+  kind: string;
+  title: string;
+}
+
+export interface BaseNotification {
+  channel: string;
+  id: string;
+}
+
+export interface Config {
+  description?: string | null;
+  name: string;
+  values: Record<string, string>;
+}
+
+export interface CreateArticleInput {
+  body: string;
+  tags?: string[];
+  title: string;
+}
+
+export interface Notification {
+  channel: string;
+  id: string;
+  sent_at?: string;
+}
+
+export type NotificationPayload = { channel: string; id: string; email: string } | { channel: string; id: string; phone: string };
+
+export type SearchResult = ArticleResult | UserResult;
+
+export interface Timestamped {
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface TreeNode {
+  children?: TreeNode[];
+  id: string;
+  label: string;
+  parent?: TreeNode | null;
+}
+
+export interface UserResult {
+  id: string;
+  kind: string;
+  username: string;
+}

@@ -1,14 +1,12 @@
-/// End-to-end conformance tests.
+/// Conformance tests.
 ///
 /// Each test loads a real OpenAPI 3.1 fixture from `tests/fixtures/`, runs the
 /// full parse → resolve → normalize → generate pipeline, and asserts structural
 /// properties of the resulting IR and file tree.
 ///
-/// The `*_tsc` tests additionally write the generated SDK to a temporary
-/// directory and invoke `tsc --noEmit` to verify the output compiles.
-/// `tsc` must be installed and in PATH; the test fails if it is not found.
+/// TypeScript compilation (`tsc --noEmit`) is verified in the e2e test suite,
+/// which runs both tsc and tsx against the generated SDK.
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use snapi_core::generator::{Generator, TargetConfig};
 use snapi_core::ir::types::IrType;
@@ -39,26 +37,6 @@ fn default_config(name: &str) -> TargetConfig {
     }
 }
 
-fn make_tera() -> tera::Tera {
-    let mut t = tera::Tera::default();
-    t.add_raw_template(
-        "typescript/package.json.tera",
-        include_str!("../../snapi-generators/templates/typescript/package.json.tera"),
-    )
-    .unwrap();
-    t.add_raw_template(
-        "typescript/tsconfig.json.tera",
-        include_str!("../../snapi-generators/templates/typescript/tsconfig.json.tera"),
-    )
-    .unwrap();
-    t.add_raw_template(
-        "typescript/README.md.tera",
-        include_str!("../../snapi-generators/templates/typescript/README.md.tera"),
-    )
-    .unwrap();
-    t
-}
-
 fn extract_text(tree: &snapi_core::file_tree::FileTree, path: &str) -> String {
     match tree.files.get(Path::new(path)).unwrap_or_else(|| {
         let keys: Vec<_> = tree.files.keys().collect();
@@ -66,40 +44,6 @@ fn extract_text(tree: &snapi_core::file_tree::FileTree, path: &str) -> String {
     }) {
         snapi_core::file_tree::FileContent::Text(s) => s.clone(),
         _ => panic!("{path} is a template, expected text"),
-    }
-}
-
-/// Resolves the `tsc` binary from the workspace-local `node_modules/.bin/tsc`.
-fn tsc_bin() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("node_modules")
-        .join(".bin")
-        .join("tsc")
-}
-
-/// Write the FileTree to a temp dir and run `tsc --noEmit`.
-/// Panics if `tsc` is not found or if compilation fails.
-fn tsc_check(tree: &snapi_core::file_tree::FileTree) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let tera = make_tera();
-    tree.write_to_disk(dir.path(), &tera)
-        .expect("write to disk");
-
-    let tsc = tsc_bin();
-    let out = Command::new(&tsc)
-        .arg("--noEmit")
-        .current_dir(dir.path())
-        .output()
-        .unwrap_or_else(|e| panic!("failed to invoke tsc at {}: {e}", tsc.display()));
-
-    if !out.status.success() {
-        panic!(
-            "tsc --noEmit failed\nstdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&out.stdout),
-            String::from_utf8_lossy(&out.stderr),
-        );
     }
 }
 
@@ -259,15 +203,6 @@ fn petstore_pets_resource_has_all_methods() {
     );
 }
 
-#[test]
-fn petstore_tsc() {
-    let ir = load_ir("petstore.yaml");
-    let tree = FetchGenerator
-        .generate(&ir, &default_config("petstore-sdk"))
-        .unwrap();
-    tsc_check(&tree);
-}
-
 // ---------------------------------------------------------------------------
 // CRUD with auth (Todo API)
 // ---------------------------------------------------------------------------
@@ -347,15 +282,6 @@ fn crud_with_auth_generator_produces_todos_resource() {
     assert!(resource.contains("deleteTodo"));
 }
 
-#[test]
-fn crud_with_auth_tsc() {
-    let ir = load_ir("crud_with_auth.yaml");
-    let tree = FetchGenerator
-        .generate(&ir, &default_config("todo-sdk"))
-        .unwrap();
-    tsc_check(&tree);
-}
-
 // ---------------------------------------------------------------------------
 // Discriminated union (Events API)
 // ---------------------------------------------------------------------------
@@ -410,15 +336,6 @@ fn discriminated_union_models_contain_union_syntax() {
         models.contains('|'),
         "no union type rendered in models:\n{models}"
     );
-}
-
-#[test]
-fn discriminated_union_tsc() {
-    let ir = load_ir("discriminated_union.yaml");
-    let tree = FetchGenerator
-        .generate(&ir, &default_config("events-sdk"))
-        .unwrap();
-    tsc_check(&tree);
 }
 
 // ---------------------------------------------------------------------------
@@ -515,11 +432,311 @@ fn circular_refs_generator_produces_files() {
         .contains_key(Path::new("src/resources/categories.ts")));
 }
 
+// ---------------------------------------------------------------------------
+// Complex schemas (allOf, oneOf, nested oneOf+allOf, inline objects, maps, circular)
+// ---------------------------------------------------------------------------
+
 #[test]
-fn circular_refs_tsc() {
-    let ir = load_ir("circular_refs.yaml");
-    let tree = FetchGenerator
-        .generate(&ir, &default_config("tree-sdk"))
+fn complex_schemas_pipeline_succeeds() {
+    let ir = load_ir("complex_schemas.yaml");
+    assert_eq!(ir.title, "Complex Schemas API");
+    assert!(ir.schemas.contains_key("Article"), "missing Article");
+    assert!(
+        ir.schemas.contains_key("Timestamped"),
+        "missing Timestamped"
+    );
+    assert!(
+        ir.schemas.contains_key("SearchResult"),
+        "missing SearchResult"
+    );
+    assert!(ir.schemas.contains_key("Config"), "missing Config");
+    assert!(ir.schemas.contains_key("TreeNode"), "missing TreeNode");
+    assert!(
+        ir.schemas.contains_key("NotificationPayload"),
+        "missing NotificationPayload"
+    );
+    assert!(
+        ir.schemas.contains_key("Notification"),
+        "missing Notification"
+    );
+}
+
+#[test]
+fn complex_schemas_article_is_allof_merged() {
+    let ir = load_ir("complex_schemas.yaml");
+    // Article = allOf[Timestamped, inline] → merges into a single Object
+    if let IrType::Object(obj) = &ir.schemas["Article"] {
+        // fields from Timestamped
+        assert!(obj.fields.contains_key("created_at"), "missing created_at");
+        assert!(obj.fields.contains_key("updated_at"), "missing updated_at");
+        // fields from the inline allOf entry
+        assert!(obj.fields.contains_key("id"), "missing id");
+        assert!(obj.fields.contains_key("title"), "missing title");
+        assert!(obj.fields.contains_key("body"), "missing body");
+        // inline author field is an unnamed Object (name: None)
+        assert!(obj.fields.contains_key("author"), "missing author");
+        if let IrType::Object(author) = &obj.fields["author"].ty {
+            assert!(
+                author.name.is_none(),
+                "author should be an unnamed inline object"
+            );
+        } else {
+            panic!("author should be Object");
+        }
+    } else {
+        panic!("Article should be Object after allOf merge");
+    }
+}
+
+#[test]
+fn complex_schemas_search_result_is_union() {
+    let ir = load_ir("complex_schemas.yaml");
+    assert!(
+        matches!(ir.schemas["SearchResult"], IrType::Union(_)),
+        "SearchResult should be Union (oneOf)"
+    );
+    if let IrType::Union(variants) = &ir.schemas["SearchResult"] {
+        assert_eq!(
+            variants.len(),
+            2,
+            "SearchResult should have 2 oneOf variants"
+        );
+    }
+}
+
+#[test]
+fn complex_schemas_config_has_map_and_nullable() {
+    let ir = load_ir("complex_schemas.yaml");
+    if let IrType::Object(obj) = &ir.schemas["Config"] {
+        assert!(
+            matches!(obj.fields["values"].ty, IrType::Map(_)),
+            "values should be Map"
+        );
+        // description: oneOf [string, null] → Union or Optional
+        let desc_ty = &obj.fields["description"].ty;
+        assert!(
+            matches!(desc_ty, IrType::Union(_) | IrType::Optional(_)),
+            "description should be Union/Optional (nullable), got {desc_ty:?}"
+        );
+    } else {
+        panic!("Config should be Object");
+    }
+}
+
+#[test]
+fn complex_schemas_tree_node_is_recursive() {
+    let ir = load_ir("complex_schemas.yaml");
+    if let IrType::Object(obj) = &ir.schemas["TreeNode"] {
+        // children: array of recursive TreeNode
+        if let IrType::Array { items, .. } = &obj.fields["children"].ty {
+            assert!(
+                matches!(items.as_ref(), IrType::Recursive(n) if n == "TreeNode"),
+                "children items should be Recursive(TreeNode)"
+            );
+        } else {
+            panic!("children should be Array");
+        }
+        // parent: oneOf [TreeNode, null] → Union containing Recursive
+        fn has_recursive(ty: &IrType) -> bool {
+            match ty {
+                IrType::Recursive(_) => true,
+                IrType::Union(vs) => vs.iter().any(has_recursive),
+                IrType::Optional(inner) => has_recursive(inner),
+                _ => false,
+            }
+        }
+        assert!(
+            has_recursive(&obj.fields["parent"].ty),
+            "parent should contain Recursive ref"
+        );
+    } else {
+        panic!("TreeNode should be Object");
+    }
+}
+
+#[test]
+fn complex_schemas_notification_payload_is_nested_oneof_allof() {
+    let ir = load_ir("complex_schemas.yaml");
+    // NotificationPayload = oneOf[allOf[Base,{email}], allOf[Base,{phone}]]
+    // → Union of two merged Objects
+    if let IrType::Union(variants) = &ir.schemas["NotificationPayload"] {
+        assert_eq!(
+            variants.len(),
+            2,
+            "NotificationPayload should have 2 variants"
+        );
+        for variant in variants {
+            if let IrType::Object(obj) = variant {
+                // both variants contain BaseNotification fields (channel, id)
+                assert!(
+                    obj.fields.contains_key("channel"),
+                    "merged variant should have channel"
+                );
+                assert!(
+                    obj.fields.contains_key("id"),
+                    "merged variant should have id"
+                );
+            } else {
+                panic!("each NotificationPayload variant should be a merged Object");
+            }
+        }
+    } else {
+        panic!("NotificationPayload should be Union");
+    }
+}
+
+#[test]
+fn complex_schemas_notification_is_allof_merged() {
+    let ir = load_ir("complex_schemas.yaml");
+    // Notification = allOf[BaseNotification, {sent_at}] → merged Object
+    if let IrType::Object(obj) = &ir.schemas["Notification"] {
+        assert!(
+            obj.fields.contains_key("id"),
+            "missing id from BaseNotification"
+        );
+        assert!(
+            obj.fields.contains_key("channel"),
+            "missing channel from BaseNotification"
+        );
+        assert!(obj.fields.contains_key("sent_at"), "missing sent_at");
+    } else {
+        panic!("Notification should be Object after allOf merge");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Composition API (inline discriminator enums, multiple path params)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn composition_api_pipeline_succeeds() {
+    let ir = load_ir("composition_api.json");
+    assert_eq!(ir.title, "Composition API");
+    assert!(ir.schemas.contains_key("CreateCompositionRequest"));
+    assert!(ir.schemas.contains_key("CompositionCreatedResponse"));
+    assert!(ir.schemas.contains_key("RegisterInput"));
+    assert!(ir.schemas.contains_key("RegisterOutput"));
+    assert!(ir.schemas.contains_key("Response"));
+}
+
+#[test]
+fn composition_api_register_input_is_union() {
+    let ir = load_ir("composition_api.json");
+    assert!(
+        matches!(ir.schemas["RegisterInput"], IrType::Union(_)),
+        "RegisterInput should be Union (oneOf), got {:?}",
+        ir.schemas["RegisterInput"]
+    );
+    if let IrType::Union(variants) = &ir.schemas["RegisterInput"] {
+        assert_eq!(variants.len(), 2, "RegisterInput should have 2 variants");
+    }
+}
+
+#[test]
+fn composition_api_inline_discriminator_is_not_bare_enum_ident() {
+    // The `type` field of each RegisterInput / RegisterOutput variant is an
+    // inline `{ "type": "string", "enum": ["rtp_stream"] }` schema with no
+    // component name.  The normalizer must NOT produce IrType::Enum { name:
+    // "Enum" } for it, which the generator would render as the bare identifier
+    // `Enum` — an undefined TypeScript type.
+    let ir = load_ir("composition_api.json");
+
+    fn has_bare_enum_fallback(ty: &IrType) -> bool {
+        match ty {
+            IrType::Enum(e) if e.name == "Enum" => true,
+            IrType::Union(variants) => variants.iter().any(has_bare_enum_fallback),
+            IrType::Object(obj) => obj.fields.values().any(|f| has_bare_enum_fallback(&f.ty)),
+            IrType::Optional(inner) => has_bare_enum_fallback(inner),
+            IrType::Array { items, .. } => has_bare_enum_fallback(items),
+            _ => false,
+        }
+    }
+
+    for (name, ty) in &ir.schemas {
+        assert!(
+            !has_bare_enum_fallback(ty),
+            "schema '{name}' contains IrType::Enum with fallback name \"Enum\": {ty:?}"
+        );
+    }
+}
+
+#[test]
+fn composition_api_register_input_type_field_is_string_literal() {
+    // The `type` discriminator field of the rtp_stream variant must be a
+    // string literal ("rtp_stream"), not the bare identifier Enum.
+    let ir = load_ir("composition_api.json");
+    if let IrType::Union(variants) = &ir.schemas["RegisterInput"] {
+        for variant in variants {
+            if let IrType::Object(obj) = variant {
+                if let Some(field) = obj.fields.get("type") {
+                    assert!(
+                        !matches!(&field.ty, IrType::Enum(e) if e.name == "Enum"),
+                        "RegisterInput.type must not be bare Enum identifier, got {:?}",
+                        field.ty
+                    );
+                    assert!(
+                        matches!(&field.ty, IrType::StringLiteral(_)),
+                        "RegisterInput.type must be StringLiteral, got {:?}",
+                        field.ty
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn composition_api_operations_parsed() {
+    let ir = load_ir("composition_api.json");
+    let ids: Vec<&str> = ir.operations.iter().map(|o| o.id.as_str()).collect();
+    assert!(ids.contains(&"create_composition"));
+    assert!(ids.contains(&"delete_composition"));
+    assert!(ids.contains(&"start"));
+    assert!(ids.contains(&"reset"));
+    assert!(ids.contains(&"register_input"));
+    assert!(ids.contains(&"register_output"));
+    assert!(ids.contains(&"update_output"));
+    assert!(ids.contains(&"request_keyframe"));
+}
+
+#[test]
+fn composition_api_register_input_has_two_path_params() {
+    let ir = load_ir("composition_api.json");
+    let op = ir
+        .operations
+        .iter()
+        .find(|o| o.id == "register_input")
         .unwrap();
-    tsc_check(&tree);
+    let path_params: Vec<_> = op
+        .params
+        .iter()
+        .filter(|p| matches!(p.location, snapi_core::ir::operation::ParamLocation::Path))
+        .collect();
+    assert_eq!(
+        path_params.len(),
+        2,
+        "register_input must have 2 path params"
+    );
+    let names: Vec<&str> = path_params.iter().map(|p| p.name.as_str()).collect();
+    assert!(names.contains(&"composition_id"));
+    assert!(names.contains(&"input_id"));
+}
+
+#[test]
+fn composition_api_models_contain_no_bare_enum_identifier() {
+    let ir = load_ir("composition_api.json");
+    let tree = FetchGenerator
+        .generate(&ir, &default_config("composition-sdk"))
+        .unwrap();
+    let models = extract_text(&tree, "src/models.ts");
+    // "Enum" as a bare type reference (not inside a string, not a field name)
+    // would appear as ": Enum" or "| Enum" or "Enum |" in generated output.
+    assert!(
+        !models.contains(": Enum"),
+        "models.ts contains bare Enum identifier:\n{models}"
+    );
+    assert!(
+        !models.contains("| Enum"),
+        "models.ts contains bare Enum identifier in union:\n{models}"
+    );
 }

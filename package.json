@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/AHGIJMKLKKZNPJKQR/snapi#readme",
   "devDependencies": {
+    "tsx": "^4.19.2",
     "typescript": "^5.9.3"
   }
 }

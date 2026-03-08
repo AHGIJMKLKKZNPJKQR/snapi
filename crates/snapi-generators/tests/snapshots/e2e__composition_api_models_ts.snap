@@ -1,0 +1,71 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export interface ApiError {
+  http_status_code: number;
+  message: string;
+}
+
+export interface AudioScene {
+  inputs: AudioSceneInput[];
+}
+
+export interface AudioSceneInput {
+  input_id: string;
+  volume?: number | null;
+}
+
+export interface CompositionCreatedResponse {
+  api_url: string;
+  composition_id: string;
+}
+
+export type CompositionId = string;
+
+export interface CreateCompositionRequest {
+  /** If true, outputs will immediately start producing audio and video. */
+  autostart?: boolean;
+}
+
+export type InputId = string;
+
+export interface Mp4Input {
+  loop?: boolean | null;
+  offset_ms?: number | null;
+  required?: boolean | null;
+  url?: string | null;
+}
+
+export interface Mp4Output {
+  path: string;
+}
+
+export type OutputId = string;
+
+export type RegisterInput = { offset_ms?: number | null; port: number; required?: boolean | null; type: "rtp_stream" } | { loop?: boolean | null; offset_ms?: number | null; required?: boolean | null; url?: string | null; type: "mp4" };
+
+export type RegisterOutput = { ip?: string | null; port: number; type: "rtp_stream" } | { path: string; type: "mp4" };
+
+export interface Resolution {
+  height: number;
+  width: number;
+}
+
+export type Response = { bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>;
+
+export interface RtpInput {
+  offset_ms?: number | null;
+  port: number;
+  required?: boolean | null;
+}
+
+export interface RtpOutput {
+  ip?: string | null;
+  port: number;
+}
+
+export interface UpdateOutputRequest {
+  audio?: null | AudioScene;
+  schedule_time_ms?: number | null;
+}

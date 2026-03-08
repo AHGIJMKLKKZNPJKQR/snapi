@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Always write tests before writing code.
-Make sure the tests fail before the code is implemented.
-Make sure the tests pass after the code is written.
+- Always write tests before writing code.
+- Make sure the tests fail before the code is implemented.
+- Make sure the tests pass after the code is written.
 
 ## Lint & Format
 
@@ -25,9 +25,10 @@ cargo test -p snapi-cli              # CLI integration tests
 Conformance tests compile generated TypeScript via `tsc --noEmit`. Ensure `tsc` is available:
 
 ```bash
-npm install                          # installs typescript locally
-export PATH="$PWD/node_modules/.bin:$PATH"
+npm install
 ```
+
+Do not attempt to edit `PATH`.
 
 ### Snapshot tests (insta)
 
@@ -74,6 +75,7 @@ The resolver's `visited` set is **stack-local**: entries are inserted on the way
 - Case conversions go through `snapi-core/src/utils/case.rs` (`to_snake_case`, `to_pascal_case`, `to_camel_case`, `escape_ident`). Do not call `heck` directly in generators.
 - User-facing errors use `miette`. Add new variants to `SnapiError` in `snapi-core/src/error.rs` with `#[diagnostic]` hints.
 - Tera templates for SDK boilerplate files (package.json, tsconfig.json, README) are embedded at compile time via `include_str!()`. Runtime template strings for code generation are fine inline.
+- Avoid using unchecked casts in all code and tests.
 
 ---
 

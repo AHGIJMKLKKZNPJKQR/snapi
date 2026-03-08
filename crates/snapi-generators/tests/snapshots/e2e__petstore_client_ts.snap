@@ -1,8 +1,8 @@
 ---
-source: crates/snapi-generators/tests/typescript_fetch.rs
-expression: client
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/client.ts\")"
 ---
-import { UsersResource } from "./resources/users";
+import { PetsResource } from "./resources/pets";
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -10,13 +10,13 @@ export interface ApiClientOptions {
   headers?: Record<string, string>;
 }
 
-/** Test API */
+/** Petstore */
 export class ApiClient {
-  readonly users: UsersResource;
+  readonly pets: PetsResource;
 
   constructor(private options: ApiClientOptions) {
     const headers: Record<string, string> = { ...options.headers };
     if (options.apiKey) headers["Authorization"] = `Bearer ${options.apiKey}`;
-    this.users = new UsersResource(options.baseUrl, headers);
+    this.pets = new PetsResource(options.baseUrl, headers);
   }
 }

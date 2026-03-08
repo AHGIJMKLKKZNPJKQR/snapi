@@ -1,0 +1,33 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export type Event = UserCreatedEvent | OrderPlacedEvent | PaymentProcessedEvent;
+
+export interface OrderPlacedEvent {
+  amount: number;
+  currency?: string;
+  order_id: string;
+  type: string;
+  user_id: string;
+}
+
+export interface PaymentProcessedEvent {
+  order_id: string;
+  payment_id: string;
+  status: PaymentStatus;
+  type: string;
+}
+
+export type PaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "REFUNDED";
+
+export interface UserCreatedEvent {
+  email: string;
+  name?: string;
+  type: string;
+  user_id: string;
+}

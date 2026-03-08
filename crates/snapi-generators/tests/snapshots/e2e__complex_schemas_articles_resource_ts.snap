@@ -1,0 +1,50 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/articles.ts\")"
+---
+import type { Article, CreateArticleInput } from "../models";
+
+export class ArticlesResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List articles */
+  async listArticles(query?: { authorId?: string; limit?: number }): Promise<Article[]> {
+    let url = new URL(`${this.baseUrl}/articles`).toString();
+    if (query) {
+      const params = new URLSearchParams();
+      if (query.authorId != null) params.set("author_id", String(query.authorId));
+      if (query.limit != null) params.set("limit", String(query.limit));
+      url = url + '?' + params.toString();
+    }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Article[]>;
+  }
+
+  /** Create an article */
+  async createArticle(body: CreateArticleInput): Promise<Article> {
+    const url = new URL(`${this.baseUrl}/articles`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Article>;
+  }
+
+  /** Get an article */
+  async getArticle(id: string): Promise<Article> {
+    const url = new URL(`${this.baseUrl}/articles/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Article>;
+  }
+
+}

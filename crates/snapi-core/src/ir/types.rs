@@ -62,6 +62,7 @@ pub enum IrType {
     Map(Box<IrType>),
     Object(IrObject),
     Enum(IrEnum),
+    StringLiteral(String),
     Union(Vec<IrType>),
     Intersection(Vec<IrObject>),
     Optional(Box<IrType>),

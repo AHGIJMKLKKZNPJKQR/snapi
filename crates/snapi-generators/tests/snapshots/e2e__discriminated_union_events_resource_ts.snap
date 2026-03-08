@@ -1,0 +1,38 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/events.ts\")"
+---
+import type { Event } from "../models";
+
+export class EventsResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List all events */
+  async listEvents(query?: { since?: string; limit?: number }): Promise<Event[]> {
+    let url = new URL(`${this.baseUrl}/events`).toString();
+    if (query) {
+      const params = new URLSearchParams();
+      if (query.since != null) params.set("since", String(query.since));
+      if (query.limit != null) params.set("limit", String(query.limit));
+      url = url + '?' + params.toString();
+    }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Event[]>;
+  }
+
+  /** Get a single event */
+  async getEvent(id: string): Promise<Event> {
+    const url = new URL(`${this.baseUrl}/events/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Event>;
+  }
+
+}

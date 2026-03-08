@@ -25,6 +25,7 @@ pub fn render_type(ty: &IrType) -> String {
         IrType::Any => "unknown".to_string(),
         IrType::Recursive(name) => to_pascal_case(name),
         IrType::Enum(e) => to_pascal_case(&e.name),
+        IrType::StringLiteral(s) => format!("\"{}\"", s),
         IrType::Union(variants) => variants
             .iter()
             .map(render_type)
@@ -212,15 +213,26 @@ pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
                 sig_parts.join(", "),
                 return_type
             ));
+            let url_kw = if query_params.is_empty() {
+                "const"
+            } else {
+                "let"
+            };
             code.push_str(&format!(
-                "    const url = new URL(`${{this.baseUrl}}{}`).toString();\n",
-                url
+                "    {} url = new URL(`${{this.baseUrl}}{}`).toString();\n",
+                url_kw, url
             ));
             if !query_params.is_empty() {
                 code.push_str("    if (query) {\n");
                 code.push_str("      const params = new URLSearchParams();\n");
-                code.push_str("      Object.entries(query).forEach(([k, v]) => v != null && params.set(k, String(v)));\n");
-                code.push_str("      url + '?' + params.toString();\n");
+                for p in &query_params {
+                    let ts_name = to_camel_case(&p.name);
+                    code.push_str(&format!(
+                        "      if (query.{} != null) params.set(\"{}\", String(query.{}));\n",
+                        ts_name, p.name, ts_name
+                    ));
+                }
+                code.push_str("      url = url + '?' + params.toString();\n");
                 code.push_str("    }\n");
             }
             code.push_str("    const response = await fetch(url, {\n");

@@ -1,0 +1,44 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/nodes.ts\")"
+---
+import type { NewNode, TreeNode } from "../models";
+
+export class NodesResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List root nodes */
+  async listNodes(): Promise<TreeNode[]> {
+    const url = new URL(`${this.baseUrl}/nodes`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<TreeNode[]>;
+  }
+
+  /** Get a node by ID */
+  async getNode(id: number): Promise<TreeNode> {
+    const url = new URL(`${this.baseUrl}/nodes/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<TreeNode>;
+  }
+
+  /** Add a child node */
+  async addChild(id: number, body: NewNode): Promise<TreeNode> {
+    const url = new URL(`${this.baseUrl}/nodes/${id}`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<TreeNode>;
+  }
+
+}

@@ -90,28 +90,43 @@ fn normalize_schema(
         return normalize_any_of(&schema.any_of, name, visiting, all_schemas);
     }
 
-    // String enum: type: string (or no type) + enum: [...] → IrType::Enum
-    // This covers the common pattern `type: string\nenum: [a, b, c]`.
     if !schema.enum_values.is_empty() {
-        let enum_name = name.unwrap_or("Enum").to_string();
-        let variants = schema
-            .enum_values
-            .iter()
-            .map(|s| IrEnumVariant {
-                name: crate::utils::case::to_pascal_case(s.as_str().unwrap_or("")),
-                ty: IrType::String(IrStringConstraints {
-                    min_length: None,
-                    max_length: None,
-                    pattern: None,
-                    format: None,
-                }),
-            })
-            .collect();
-        return Ok(IrType::Enum(IrEnum {
-            name: enum_name,
-            variants,
-            discriminator: None,
-        }));
+        if let Some(enum_name) = name {
+            // Named (top-level) enum: produce a proper IrType::Enum so the
+            // generator emits an exported `export type Foo = "A" | "B"` declaration.
+            let variants = schema
+                .enum_values
+                .iter()
+                .map(|s| IrEnumVariant {
+                    name: crate::utils::case::to_pascal_case(s.as_str().unwrap_or("")),
+                    ty: IrType::String(IrStringConstraints {
+                        min_length: None,
+                        max_length: None,
+                        pattern: None,
+                        format: None,
+                    }),
+                })
+                .collect();
+            return Ok(IrType::Enum(IrEnum {
+                name: enum_name.to_string(),
+                variants,
+                discriminator: None,
+            }));
+        } else {
+            // Inline enum (no component name): produce string literals so the
+            // generator emits `"rtp_stream"` rather than the bare identifier
+            // `Enum` which would be an undefined TypeScript type.
+            let literals: Vec<IrType> = schema
+                .enum_values
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| IrType::StringLiteral(s.to_string())))
+                .collect();
+            return match literals.len() {
+                0 => Ok(IrType::Any),
+                1 => Ok(literals.into_iter().next().unwrap()),
+                _ => Ok(IrType::Union(literals)),
+            };
+        }
     }
 
     // Determine type(s)
@@ -675,6 +690,45 @@ mod tests {
             assert!(names.contains(&"Pending"));
         } else {
             panic!("expected Enum, got {:?}", ty);
+        }
+    }
+
+    #[test]
+    fn test_inline_single_enum_produces_string_literal() {
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::String)),
+            enum_values: vec![serde_json::Value::String("rtp_stream".to_string())],
+            ..Default::default()
+        };
+        let mut visiting = HashSet::new();
+        let all_schemas = BTreeMap::new();
+        // name=None → must NOT fall back to IrType::Enum { name: "Enum" }
+        let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
+        assert!(
+            matches!(&ty, IrType::StringLiteral(s) if s == "rtp_stream"),
+            "single-value inline enum must produce StringLiteral(\"rtp_stream\"), got {ty:?}"
+        );
+    }
+
+    #[test]
+    fn test_inline_multi_enum_produces_union_of_string_literals() {
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::String)),
+            enum_values: vec![
+                serde_json::Value::String("mp4".to_string()),
+                serde_json::Value::String("hls".to_string()),
+            ],
+            ..Default::default()
+        };
+        let mut visiting = HashSet::new();
+        let all_schemas = BTreeMap::new();
+        let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
+        if let IrType::Union(variants) = ty {
+            assert_eq!(variants.len(), 2);
+            assert!(matches!(&variants[0], IrType::StringLiteral(s) if s == "mp4"));
+            assert!(matches!(&variants[1], IrType::StringLiteral(s) if s == "hls"));
+        } else {
+            panic!("multi-value inline enum must produce Union of StringLiterals, got {ty:?}");
         }
     }
 

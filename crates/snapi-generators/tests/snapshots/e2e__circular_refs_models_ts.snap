@@ -1,0 +1,26 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export interface Category {
+  children?: Category[];
+  id: number;
+  name: string;
+  /** Parent category */
+  parent?: Category | null;
+}
+
+export interface NewNode {
+  value: string;
+}
+
+export interface TreeNode {
+  /** Child nodes (recursive) */
+  children?: TreeNode[];
+  /** Node identifier */
+  id: number;
+  /** Parent node reference (nullable circular ref) */
+  parent?: TreeNode | null;
+  /** Node payload */
+  value: string;
+}

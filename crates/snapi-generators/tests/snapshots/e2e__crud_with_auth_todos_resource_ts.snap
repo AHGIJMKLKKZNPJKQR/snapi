@@ -1,0 +1,74 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/todos.ts\")"
+---
+import type { CreateTodoInput, Todo, UpdateTodoInput } from "../models";
+
+export class TodosResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List all todos */
+  async listTodos(query?: { status?: string; page?: number; perPage?: number }): Promise<Todo[]> {
+    let url = new URL(`${this.baseUrl}/todos`).toString();
+    if (query) {
+      const params = new URLSearchParams();
+      if (query.status != null) params.set("status", String(query.status));
+      if (query.page != null) params.set("page", String(query.page));
+      if (query.perPage != null) params.set("per_page", String(query.perPage));
+      url = url + '?' + params.toString();
+    }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Todo[]>;
+  }
+
+  /** Create a todo */
+  async createTodo(body: CreateTodoInput): Promise<Todo> {
+    const url = new URL(`${this.baseUrl}/todos`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Todo>;
+  }
+
+  /** Get a todo by ID */
+  async getTodo(id: string): Promise<Todo> {
+    const url = new URL(`${this.baseUrl}/todos/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Todo>;
+  }
+
+  /** Update a todo */
+  async updateTodo(id: string, body: UpdateTodoInput): Promise<Todo> {
+    const url = new URL(`${this.baseUrl}/todos/${id}`).toString();
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Todo>;
+  }
+
+  /** Delete a todo */
+  async deleteTodo(id: string): Promise<void> {
+    const url = new URL(`${this.baseUrl}/todos/${id}`).toString();
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return;
+  }
+
+}

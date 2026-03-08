@@ -1,8 +1,0 @@
----
-source: crates/snapi-generators/tests/typescript_fetch.rs
-expression: models
----
-export interface Node {
-  value: number;
-  child?: Node | null;
-}

@@ -1,0 +1,587 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Composition API",
+    "description": "Real-time video compositing",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://rtc.fishjam.io"
+    }
+  ],
+  "paths": {
+    "/api/composition": {
+      "post": {
+        "tags": ["composition"],
+        "operationId": "create_composition",
+        "requestBody": {
+          "description": "Composition creation options.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCompositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Composition created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionCreatedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}": {
+      "delete": {
+        "tags": ["composition"],
+        "operationId": "delete_composition",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Composition deleted." },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Composition not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/start": {
+      "post": {
+        "tags": ["control_request"],
+        "operationId": "start",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composition started.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Composition not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/reset": {
+      "post": {
+        "tags": ["control_request"],
+        "operationId": "reset",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composition reset.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/input/{input_id}/register": {
+      "post": {
+        "tags": ["register_request"],
+        "operationId": "register_input",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "input_id",
+            "in": "path",
+            "description": "Input ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterInput" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Input registered successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/output/{output_id}/register": {
+      "post": {
+        "tags": ["register_request"],
+        "operationId": "register_output",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "output_id",
+            "in": "path",
+            "description": "Output ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterOutput" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Output registered successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/output/{output_id}/update": {
+      "post": {
+        "tags": ["update_request"],
+        "operationId": "update_output",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "output_id",
+            "in": "path",
+            "description": "Output ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateOutputRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Output updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    },
+    "/api/composition/{composition_id}/output/{output_id}/request_keyframe": {
+      "post": {
+        "tags": ["update_request"],
+        "operationId": "request_keyframe",
+        "parameters": [
+          {
+            "name": "composition_id",
+            "in": "path",
+            "description": "Composition ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "output_id",
+            "in": "path",
+            "description": "Output ID.",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Keyframe request successful.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Response" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        },
+        "security": [{ "BearerAuth": [] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": ["message", "http_status_code"],
+        "properties": {
+          "message": { "type": "string" },
+          "http_status_code": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "CompositionCreatedResponse": {
+        "type": "object",
+        "required": ["composition_id", "api_url"],
+        "properties": {
+          "composition_id": { "$ref": "#/components/schemas/CompositionId" },
+          "api_url": { "type": "string" }
+        }
+      },
+      "CompositionId": {
+        "type": "string"
+      },
+      "CreateCompositionRequest": {
+        "type": "object",
+        "properties": {
+          "autostart": {
+            "type": "boolean",
+            "description": "If true, outputs will immediately start producing audio and video.",
+            "default": true
+          }
+        }
+      },
+      "InputId": {
+        "type": "string"
+      },
+      "OutputId": {
+        "type": "string"
+      },
+      "RegisterInput": {
+        "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/RtpInput" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["rtp_stream"] }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/Mp4Input" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["mp4"] }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "RegisterOutput": {
+        "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/RtpOutput" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["rtp_stream"] }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/Mp4Output" },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["mp4"] }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "Response": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["bearer_token"],
+            "properties": {
+              "bearer_token": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "video_duration_ms": {
+                "type": ["integer", "null"],
+                "format": "int64",
+                "minimum": 0
+              },
+              "audio_duration_ms": {
+                "type": ["integer", "null"],
+                "format": "int64",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "port": {
+                "type": ["integer", "null"],
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "RtpInput": {
+        "type": "object",
+        "required": ["port"],
+        "properties": {
+          "port": { "type": "integer", "format": "int32", "minimum": 0 },
+          "required": {
+            "type": ["boolean", "null"]
+          },
+          "offset_ms": {
+            "type": ["number", "null"],
+            "format": "double"
+          }
+        }
+      },
+      "Mp4Input": {
+        "type": "object",
+        "properties": {
+          "url": { "type": ["string", "null"] },
+          "loop": { "type": ["boolean", "null"] },
+          "required": { "type": ["boolean", "null"] },
+          "offset_ms": { "type": ["number", "null"], "format": "double" }
+        }
+      },
+      "Resolution": {
+        "type": "object",
+        "required": ["width", "height"],
+        "properties": {
+          "width": { "type": "integer", "minimum": 0 },
+          "height": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "RtpOutput": {
+        "type": "object",
+        "required": ["port"],
+        "properties": {
+          "port": { "type": "integer", "format": "int32", "minimum": 0 },
+          "ip": { "type": ["string", "null"] }
+        }
+      },
+      "Mp4Output": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string" }
+        }
+      },
+      "AudioScene": {
+        "type": "object",
+        "required": ["inputs"],
+        "properties": {
+          "inputs": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AudioSceneInput" }
+          }
+        }
+      },
+      "AudioSceneInput": {
+        "type": "object",
+        "required": ["input_id"],
+        "properties": {
+          "input_id": { "$ref": "#/components/schemas/InputId" },
+          "volume": { "type": ["number", "null"], "format": "float" }
+        }
+      },
+      "UpdateOutputRequest": {
+        "type": "object",
+        "properties": {
+          "audio": {
+            "oneOf": [
+              { "type": "null" },
+              { "$ref": "#/components/schemas/AudioScene" }
+            ]
+          },
+          "schedule_time_ms": {
+            "type": ["number", "null"],
+            "format": "double"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
