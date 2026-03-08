@@ -98,7 +98,7 @@ fn normalize_schema(
             .enum_values
             .iter()
             .map(|s| IrEnumVariant {
-                name: crate::utils::case::to_pascal_case(s),
+                name: crate::utils::case::to_pascal_case(s.as_str().unwrap_or("")),
                 ty: IrType::String(IrStringConstraints {
                     min_length: None,
                     max_length: None,
@@ -172,14 +172,18 @@ fn build_simple_type(
         SchemaType::Boolean => Ok(IrType::Boolean),
         SchemaType::Null => Ok(IrType::Null),
         SchemaType::Array => {
-            let items = if let Some(items_ref) = &schema.items {
-                match items_ref.as_ref() {
-                    ObjectOrReference::Object(items_schema) => {
-                        normalize_schema(items_schema, None, visiting, all_schemas)?
-                    }
-                    ObjectOrReference::Ref { ref_path } => {
-                        resolve_ref_type(ref_path, visiting, all_schemas)?
-                    }
+            let items = if let Some(items_schema) = &schema.items {
+                use oas3::spec::Schema;
+                match items_schema.as_ref() {
+                    Schema::Object(oor) => match oor.as_ref() {
+                        ObjectOrReference::Object(s) => {
+                            normalize_schema(s, None, visiting, all_schemas)?
+                        }
+                        ObjectOrReference::Ref { ref_path, .. } => {
+                            resolve_ref_type(ref_path, visiting, all_schemas)?
+                        }
+                    },
+                    Schema::Boolean(_) => IrType::Any,
                 }
             } else {
                 IrType::Any
@@ -209,7 +213,7 @@ fn normalize_object(
                     let value_type = normalize_schema(ap_schema, None, visiting, all_schemas)?;
                     Ok(IrType::Map(Box::new(value_type)))
                 }
-                ObjectOrReference::Ref { ref_path } => {
+                ObjectOrReference::Ref { ref_path, .. } => {
                     let value_type = resolve_ref_type(ref_path, visiting, all_schemas)?;
                     Ok(IrType::Map(Box::new(value_type)))
                 }
@@ -228,7 +232,7 @@ fn normalize_object(
                 let ty = normalize_schema(fs, None, visiting, all_schemas)?;
                 (Some(fs), ty)
             }
-            ObjectOrReference::Ref { ref_path } => {
+            ObjectOrReference::Ref { ref_path, .. } => {
                 let ty = resolve_ref_type(ref_path, visiting, all_schemas)?;
                 (None, ty)
             }
@@ -266,7 +270,7 @@ fn normalize_all_of(
                     objects.push(obj);
                 }
             }
-            ObjectOrReference::Ref { ref_path } => {
+            ObjectOrReference::Ref { ref_path, .. } => {
                 let ty = resolve_ref_type(ref_path, visiting, all_schemas)?;
                 if let IrType::Object(obj) = ty {
                     objects.push(obj);
@@ -304,7 +308,7 @@ fn normalize_one_of(
     for schema_ref in &schema.one_of {
         let ty = match schema_ref {
             ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas)?,
-            ObjectOrReference::Ref { ref_path } => {
+            ObjectOrReference::Ref { ref_path, .. } => {
                 resolve_ref_type(ref_path, visiting, all_schemas)?
             }
         };
@@ -323,7 +327,7 @@ fn normalize_any_of(
     for schema_ref in any_of {
         let ty = match schema_ref {
             ObjectOrReference::Object(s) => normalize_schema(s, None, visiting, all_schemas)?,
-            ObjectOrReference::Ref { ref_path } => {
+            ObjectOrReference::Ref { ref_path, .. } => {
                 resolve_ref_type(ref_path, visiting, all_schemas)?
             }
         };
@@ -355,6 +359,7 @@ fn resolve_ref_type(
             }
             ObjectOrReference::Ref {
                 ref_path: inner_ref,
+                ..
             } => resolve_ref_type(inner_ref, visiting, all_schemas),
         }
     } else {
@@ -417,7 +422,7 @@ fn extract_operations(
                                 normalize_schema(s, None, &mut vis, &all_schemas)
                                     .unwrap_or(IrType::Any)
                             }
-                            ObjectOrReference::Ref { ref_path } => {
+                            ObjectOrReference::Ref { ref_path, .. } => {
                                 let mut vis = resolved.visited_schemas.clone();
                                 resolve_ref_type(ref_path, &mut vis, &all_schemas)
                                     .unwrap_or(IrType::Any)
@@ -450,7 +455,7 @@ fn extract_operations(
                                         let mut vis = resolved.visited_schemas.clone();
                                         normalize_schema(s, None, &mut vis, &all_schemas).ok()
                                     }
-                                    ObjectOrReference::Ref { ref_path } => {
+                                    ObjectOrReference::Ref { ref_path, .. } => {
                                         let mut vis = resolved.visited_schemas.clone();
                                         resolve_ref_type(ref_path, &mut vis, &all_schemas).ok()
                                     }
@@ -490,7 +495,7 @@ fn extract_operations(
                                     let mut vis = resolved.visited_schemas.clone();
                                     normalize_schema(s, None, &mut vis, &all_schemas).ok()
                                 }
-                                ObjectOrReference::Ref { ref_path } => {
+                                ObjectOrReference::Ref { ref_path, .. } => {
                                     let mut vis = resolved.visited_schemas.clone();
                                     resolve_ref_type(ref_path, &mut vis, &all_schemas).ok()
                                 }
@@ -651,9 +656,9 @@ mod tests {
         let schema = ObjectSchema {
             schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
             enum_values: vec![
-                "active".to_string(),
-                "inactive".to_string(),
-                "pending".to_string(),
+                serde_json::Value::String("active".to_string()),
+                serde_json::Value::String("inactive".to_string()),
+                serde_json::Value::String("pending".to_string()),
             ],
             ..Default::default()
         };
@@ -677,7 +682,9 @@ mod tests {
     fn test_normalize_array_with_items() {
         let schema = ObjectSchema {
             schema_type: Some(SchemaTypeSet::Single(SchemaType::Array)),
-            items: Some(Box::new(ObjectOrReference::Object(make_string_schema()))),
+            items: Some(Box::new(oas3::spec::Schema::Object(Box::new(
+                ObjectOrReference::Object(make_string_schema()),
+            )))),
             ..Default::default()
         };
         let mut visiting = HashSet::new();
@@ -816,6 +823,8 @@ mod tests {
             "child".to_string(),
             ObjectOrReference::Ref {
                 ref_path: "#/components/schemas/Node".to_string(),
+                summary: None,
+                description: None,
             },
         );
         let node_schema = ObjectSchema {

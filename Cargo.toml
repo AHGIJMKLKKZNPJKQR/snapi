@@ -13,7 +13,7 @@ tera       = "1"
 miette     = { version = "7", features = ["fancy"] }
 thiserror  = "2"
 clap       = { version = "4", features = ["derive"] }
-oas3       = "0.12"
-toml       = "0.8"
+oas3       = "0.20"
+toml       = "1"
 insta      = { version = "1", features = ["json"] }
 tempfile   = "3"
