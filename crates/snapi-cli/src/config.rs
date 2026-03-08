@@ -23,6 +23,7 @@ pub struct RawTargetConfig {
     pub description: Option<String>,
     pub version: Option<String>,
     pub publish: Option<PublishConfig>,
+    pub on_collision: Option<snapi_core::generator::CollisionStrategy>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

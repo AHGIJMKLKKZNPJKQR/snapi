@@ -2,9 +2,18 @@ pub mod axios;
 pub mod fetch;
 
 use indexmap::IndexMap;
+use snapi_core::error::SnapiError;
+use snapi_core::generator::CollisionStrategy;
 use snapi_core::ir::operation::IrOperation;
 use snapi_core::ir::types::{IrObject, IrType};
 use snapi_core::utils::case::{to_camel_case, to_pascal_case};
+
+#[derive(Debug)]
+pub struct RenderedResource {
+    pub tag: String,
+    pub class_name: String,
+    pub code: String,
+}
 
 pub fn render_type(ty: &IrType) -> String {
     match ty {
@@ -77,10 +86,37 @@ fn render_inline_object(obj: &IrObject) -> String {
     format!("{{ {} }}", fields.join("; "))
 }
 
-pub fn render_models(schemas: &IndexMap<String, IrType>) -> String {
+pub fn render_models(
+    schemas: &IndexMap<String, IrType>,
+    strategy: CollisionStrategy,
+) -> anyhow::Result<String> {
     let mut output = String::new();
+    let mut seen: IndexMap<String, &str> = IndexMap::new();
+    let mut counts: IndexMap<String, usize> = IndexMap::new();
     for (name, ty) in schemas {
-        let ts_name = to_pascal_case(name);
+        let base = to_pascal_case(name);
+        let ts_name = match strategy {
+            CollisionStrategy::Fail => {
+                if let Some(prior) = seen.get(&base) {
+                    return Err(SnapiError::NameCollision(format!(
+                        "in model: \"{}\" and \"{}\" both produce \"{}\"",
+                        prior, name, base,
+                    ))
+                    .into());
+                }
+                seen.insert(base.clone(), name);
+                base
+            }
+            CollisionStrategy::Suffix => {
+                let n = counts.entry(base.clone()).or_insert(0);
+                *n += 1;
+                if *n == 1 {
+                    base
+                } else {
+                    format!("{}{}", base, n)
+                }
+            }
+        };
         match ty {
             IrType::Object(obj) => {
                 output.push_str(&format!("export interface {} {{\n", ts_name));
@@ -117,10 +153,13 @@ pub fn render_models(schemas: &IndexMap<String, IrType>) -> String {
             }
         }
     }
-    output
+    Ok(output)
 }
 
-pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
+pub fn render_resources(
+    operations: &[IrOperation],
+    strategy: CollisionStrategy,
+) -> anyhow::Result<Vec<RenderedResource>> {
     // Group by tag
     let mut by_tag: IndexMap<String, Vec<&IrOperation>> = IndexMap::new();
     for op in operations {
@@ -132,9 +171,40 @@ pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
         by_tag.entry(tag).or_default().push(op);
     }
 
+    // Detect / resolve resource class name collisions
+    let mut seen_classes: IndexMap<String, &str> = IndexMap::new();
+    let mut class_counts: IndexMap<String, usize> = IndexMap::new();
+    let mut class_names: IndexMap<String, String> = IndexMap::new();
+    for tag in by_tag.keys() {
+        let base = format!("{}Resource", to_pascal_case(tag));
+        let name = match strategy {
+            CollisionStrategy::Fail => {
+                if let Some(prior) = seen_classes.get(&base) {
+                    return Err(SnapiError::NameCollision(format!(
+                        "in resource: \"{}\" and \"{}\" both produce \"{}\"",
+                        prior, tag, base,
+                    ))
+                    .into());
+                }
+                seen_classes.insert(base.clone(), tag);
+                base
+            }
+            CollisionStrategy::Suffix => {
+                let n = class_counts.entry(base.clone()).or_insert(0);
+                *n += 1;
+                if *n == 1 {
+                    base
+                } else {
+                    format!("{}{}", base, n)
+                }
+            }
+        };
+        class_names.insert(tag.clone(), name);
+    }
+
     let mut result = vec![];
     for (tag, ops) in &by_tag {
-        let class_name = format!("{}Resource", to_pascal_case(tag));
+        let class_name = class_names[tag].clone();
         let mut code = String::new();
 
         // Collect imports needed
@@ -162,8 +232,39 @@ pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
         code.push_str(&format!("export class {} {{\n", class_name));
         code.push_str("  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}\n\n");
 
+        // Build method names, detecting / resolving collisions
+        let mut seen_methods: IndexMap<String, String> = IndexMap::new(); // base → first op.id
+        let mut method_counts: IndexMap<String, usize> = IndexMap::new();
+        let mut op_method_names: Vec<String> = Vec::with_capacity(ops.len());
         for op in ops.iter() {
-            let method_name = to_camel_case(&op.id);
+            let base_method = to_camel_case(&op.id);
+            let method_name = match strategy {
+                CollisionStrategy::Fail => {
+                    if let Some(prior) = seen_methods.get(&base_method) {
+                        return Err(SnapiError::NameCollision(format!(
+                            "in method (tag \"{}\"): \"{}\" and \"{}\" both produce \"{}\"",
+                            tag, prior, op.id, base_method,
+                        ))
+                        .into());
+                    }
+                    seen_methods.insert(base_method.clone(), op.id.clone());
+                    base_method
+                }
+                CollisionStrategy::Suffix => {
+                    let n = method_counts.entry(base_method.clone()).or_insert(0);
+                    *n += 1;
+                    if *n == 1 {
+                        base_method
+                    } else {
+                        format!("{}{}", base_method, n)
+                    }
+                }
+            };
+            op_method_names.push(method_name);
+        }
+
+        for (op, method_name) in ops.iter().zip(op_method_names.iter()) {
+            let method_name = method_name.as_str();
 
             // Build params signature
             let path_params: Vec<_> = op
@@ -274,9 +375,13 @@ pub fn render_resources(operations: &[IrOperation]) -> Vec<(String, String)> {
             code.push_str("  }\n\n");
         }
         code.push_str("}\n");
-        result.push((tag.clone(), code));
+        result.push(RenderedResource {
+            tag: tag.clone(),
+            class_name,
+            code,
+        });
     }
-    result
+    Ok(result)
 }
 
 fn collect_type_names(ty: &IrType, names: &mut Vec<String>) {
@@ -304,6 +409,8 @@ fn collect_type_names(ty: &IrType, names: &mut Vec<String>) {
 mod tests {
     use super::*;
     use indexmap::IndexMap;
+    use snapi_core::generator::CollisionStrategy;
+    use snapi_core::ir::operation::{HttpMethod, IrOperation};
     use snapi_core::ir::types::{IrIntConstraints, IrObject, IrStringConstraints, IrType};
 
     fn str_ty() -> IrType {
@@ -414,7 +521,7 @@ mod tests {
         });
         let mut schemas = IndexMap::new();
         schemas.insert("Status".to_string(), ty);
-        let output = render_models(&schemas);
+        let output = render_models(&schemas, CollisionStrategy::Fail).unwrap();
         assert!(
             output.contains("\"active\""),
             "must render original value; got:\n{output}"
@@ -449,6 +556,131 @@ mod tests {
         assert!(
             names.contains(&"Resolution".to_string()),
             "collect_type_names must recurse into unnamed object fields; got {names:?}"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Collision detection
+    // ---------------------------------------------------------------------------
+
+    fn simple_op(id: &str, tag: &str) -> IrOperation {
+        IrOperation {
+            id: id.to_string(),
+            path: format!("/{}", id),
+            method: HttpMethod::Get,
+            summary: None,
+            description: None,
+            tags: vec![tag.to_string()],
+            params: vec![],
+            body: None,
+            responses: vec![],
+            deprecated: false,
+        }
+    }
+
+    #[test]
+    fn model_name_collision_fails_by_default() {
+        let mut schemas = IndexMap::new();
+        schemas.insert("hello_world".to_string(), str_ty());
+        schemas.insert("hello-world".to_string(), str_ty());
+        let err = render_models(&schemas, CollisionStrategy::Fail).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("hello_world"),
+            "error should name first schema; got: {msg}"
+        );
+        assert!(
+            msg.contains("hello-world"),
+            "error should name second schema; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn model_name_collision_suffixes_with_suffix_strategy() {
+        let mut schemas = IndexMap::new();
+        schemas.insert("hello_world".to_string(), str_ty());
+        schemas.insert("hello-world".to_string(), str_ty());
+        let output = render_models(&schemas, CollisionStrategy::Suffix).unwrap();
+        assert!(
+            output.contains("HelloWorld ") || output.contains("HelloWorld\n"),
+            "first schema should keep base name; got:\n{output}"
+        );
+        assert!(
+            output.contains("HelloWorld2"),
+            "second schema should get suffix; got:\n{output}"
+        );
+    }
+
+    #[test]
+    fn resource_class_collision_fails_by_default() {
+        let ops = vec![
+            simple_op("list", "hello_world"),
+            simple_op("create", "hello-world"),
+        ];
+        let err = render_resources(&ops, CollisionStrategy::Fail).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("hello_world"),
+            "error should name first tag; got: {msg}"
+        );
+        assert!(
+            msg.contains("hello-world"),
+            "error should name second tag; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn resource_class_collision_suffixes_class_names() {
+        let ops = vec![
+            simple_op("list", "hello_world"),
+            simple_op("create", "hello-world"),
+        ];
+        let resources = render_resources(&ops, CollisionStrategy::Suffix).unwrap();
+        let class_names: Vec<&str> = resources.iter().map(|r| r.class_name.as_str()).collect();
+        assert!(
+            class_names.contains(&"HelloWorldResource"),
+            "first tag should keep base class name; got: {class_names:?}"
+        );
+        assert!(
+            class_names.contains(&"HelloWorldResource2"),
+            "second tag should get suffixed class name; got: {class_names:?}"
+        );
+    }
+
+    #[test]
+    fn method_name_collision_fails_by_default() {
+        // "get_thing" and "getThing" both normalize to "getThing"
+        let ops = vec![
+            simple_op("get_thing", "items"),
+            simple_op("getThing", "items"),
+        ];
+        let err = render_resources(&ops, CollisionStrategy::Fail).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("get_thing"),
+            "error should name first op id; got: {msg}"
+        );
+        assert!(
+            msg.contains("getThing"),
+            "error should name second op id; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn method_name_collision_suffixes_method_names() {
+        let ops = vec![
+            simple_op("get_thing", "items"),
+            simple_op("getThing", "items"),
+        ];
+        let resources = render_resources(&ops, CollisionStrategy::Suffix).unwrap();
+        let code = &resources[0].code;
+        assert!(
+            code.contains("async getThing("),
+            "first method keeps base name; got:\n{code}"
+        );
+        assert!(
+            code.contains("async getThing2("),
+            "second method gets suffix; got:\n{code}"
         );
     }
 }

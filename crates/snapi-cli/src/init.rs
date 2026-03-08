@@ -26,6 +26,7 @@ pub(crate) fn write_config(
             description: None,
             version: None,
             publish: None,
+            on_collision: None,
         })
         .collect();
 

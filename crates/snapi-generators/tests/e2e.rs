@@ -33,6 +33,7 @@ fn default_config(name: &str) -> TargetConfig {
         description: None,
         dir: PathBuf::from("sdks/typescript"),
         publish: None,
+        on_collision: snapi_core::generator::CollisionStrategy::Fail,
     }
 }
 

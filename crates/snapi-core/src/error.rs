@@ -39,4 +39,10 @@ pub enum SnapiError {
         #[source]
         source: std::io::Error,
     },
+
+    #[error("name collision {0}")]
+    #[diagnostic(help(
+        "rename one of them in your OpenAPI spec, or set `on_collision = \"suffix\"` in snapi.toml"
+    ))]
+    NameCollision(String),
 }

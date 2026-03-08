@@ -91,6 +91,9 @@ fn main() -> miette::Result<()> {
                     description: raw_target.description.clone(),
                     dir: raw_target.dir.clone(),
                     publish: raw_target.publish.clone(),
+                    on_collision: raw_target
+                        .on_collision
+                        .unwrap_or(snapi_core::generator::CollisionStrategy::Fail),
                 };
 
                 let file_tree = gen

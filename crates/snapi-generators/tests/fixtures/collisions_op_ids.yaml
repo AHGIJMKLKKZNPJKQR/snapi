@@ -1,0 +1,21 @@
+openapi: "3.1.0"
+info:
+  title: Operation ID Collision Test
+  version: "0.1.0"
+paths:
+  /pets:
+    get:
+      operationId: list_pets
+      tags:
+        - pets
+      responses:
+        "200":
+          description: ok
+  /pets/all:
+    get:
+      operationId: listPets
+      tags:
+        - pets
+      responses:
+        "200":
+          description: ok

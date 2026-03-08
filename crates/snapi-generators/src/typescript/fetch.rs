@@ -1,8 +1,7 @@
-use super::{render_models, render_resources};
+use super::{render_models, render_resources, RenderedResource};
 use snapi_core::file_tree::{FileContent, FileTree};
 use snapi_core::generator::{Generator, TargetConfig};
 use snapi_core::ir::api::IrApi;
-use snapi_core::utils::case::to_pascal_case;
 
 pub struct FetchGenerator;
 
@@ -21,15 +20,18 @@ impl Generator for FetchGenerator {
         let mut tree = FileTree::default();
 
         // src/models.ts
-        let models_content = render_models(&api.schemas);
+        let models_content = render_models(&api.schemas, config.on_collision)?;
         tree.insert("src/models.ts", FileContent::Text(models_content));
 
         // src/resources/<tag>.ts
-        let resources = render_resources(&api.operations);
-        for (tag, code) in &resources {
+        let resources = render_resources(&api.operations, config.on_collision)?;
+        for res in &resources {
             tree.insert(
-                format!("src/resources/{}.ts", tag.to_lowercase().replace(' ', "_")),
-                FileContent::Text(code.clone()),
+                format!(
+                    "src/resources/{}.ts",
+                    res.tag.to_lowercase().replace(' ', "_")
+                ),
+                FileContent::Text(res.code.clone()),
             );
         }
 
@@ -41,10 +43,10 @@ impl Generator for FetchGenerator {
         let mut index_code = String::new();
         index_code.push_str("export * from \"./client\";\n");
         index_code.push_str("export * from \"./models\";\n");
-        for (tag, _) in &resources {
+        for res in &resources {
             index_code.push_str(&format!(
                 "export * from \"./resources/{}\";\n",
-                tag.to_lowercase().replace(' ', "_")
+                res.tag.to_lowercase().replace(' ', "_")
             ));
         }
         tree.insert("src/index.ts", FileContent::Text(index_code));
@@ -79,16 +81,15 @@ impl Generator for FetchGenerator {
     }
 }
 
-fn render_client(api: &IrApi, resources: &[(String, String)]) -> String {
+fn render_client(api: &IrApi, resources: &[RenderedResource]) -> String {
     let mut code = String::new();
 
     // Imports
-    for (tag, _) in resources {
-        let class_name = format!("{}Resource", to_pascal_case(tag));
-        let file_name = tag.to_lowercase().replace(' ', "_");
+    for res in resources {
+        let file_name = res.tag.to_lowercase().replace(' ', "_");
         code.push_str(&format!(
             "import {{ {} }} from \"./resources/{}\";\n",
-            class_name, file_name
+            res.class_name, file_name
         ));
     }
     code.push('\n');
@@ -103,10 +104,9 @@ fn render_client(api: &IrApi, resources: &[(String, String)]) -> String {
     code.push_str("export class ApiClient {\n");
 
     // Resource fields
-    for (tag, _) in resources {
-        let class_name = format!("{}Resource", to_pascal_case(tag));
-        let field_name = snapi_core::utils::case::to_camel_case(tag);
-        code.push_str(&format!("  readonly {}: {};\n", field_name, class_name));
+    for res in resources {
+        let field_name = snapi_core::utils::case::to_camel_case(&res.tag);
+        code.push_str(&format!("  readonly {}: {};\n", field_name, res.class_name));
     }
     code.push('\n');
 
@@ -116,12 +116,11 @@ fn render_client(api: &IrApi, resources: &[(String, String)]) -> String {
     code.push_str(
         "    if (options.apiKey) headers[\"Authorization\"] = `Bearer ${options.apiKey}`;\n",
     );
-    for (tag, _) in resources {
-        let class_name = format!("{}Resource", to_pascal_case(tag));
-        let field_name = snapi_core::utils::case::to_camel_case(tag);
+    for res in resources {
+        let field_name = snapi_core::utils::case::to_camel_case(&res.tag);
         code.push_str(&format!(
             "    this.{} = new {}(options.baseUrl, headers);\n",
-            field_name, class_name
+            field_name, res.class_name
         ));
     }
     code.push_str("  }\n");
