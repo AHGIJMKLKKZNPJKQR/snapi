@@ -12,7 +12,17 @@ pub fn render_type(ty: &IrType) -> String {
         IrType::Integer(_) | IrType::Float(_) => "number".to_string(),
         IrType::Boolean => "boolean".to_string(),
         IrType::Null => "null".to_string(),
-        IrType::Array { items, .. } => format!("{}[]", render_type(items)),
+        IrType::Array { items, .. } => {
+            let inner = render_type(items);
+            if matches!(
+                items.as_ref(),
+                IrType::Union(_) | IrType::Intersection(_) | IrType::Optional(_)
+            ) {
+                format!("({})[]", inner)
+            } else {
+                format!("{}[]", inner)
+            }
+        }
         IrType::Map(v) => format!("Record<string, {}>", render_type(v)),
         IrType::Object(o) => {
             if let Some(name) = &o.name {
@@ -21,7 +31,14 @@ pub fn render_type(ty: &IrType) -> String {
                 render_inline_object(o)
             }
         }
-        IrType::Optional(inner) => format!("{} | null", render_type(inner)),
+        IrType::Optional(inner) => {
+            let rendered = render_type(inner);
+            if matches!(inner.as_ref(), IrType::Intersection(_)) {
+                format!("({}) | null", rendered)
+            } else {
+                format!("{} | null", rendered)
+            }
+        }
         IrType::Any => "unknown".to_string(),
         IrType::Recursive(name) => to_pascal_case(name),
         IrType::Enum(e) => to_pascal_case(&e.name),
@@ -274,5 +291,101 @@ fn collect_type_names(ty: &IrType, names: &mut Vec<String>) {
         IrType::Map(v) => collect_type_names(v, names),
         IrType::Union(variants) => variants.iter().for_each(|v| collect_type_names(v, names)),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indexmap::IndexMap;
+    use snapi_core::ir::types::{IrIntConstraints, IrObject, IrStringConstraints, IrType};
+
+    fn str_ty() -> IrType {
+        IrType::String(IrStringConstraints {
+            min_length: None,
+            max_length: None,
+            pattern: None,
+            format: None,
+        })
+    }
+
+    fn num_ty() -> IrType {
+        IrType::Integer(IrIntConstraints {
+            minimum: None,
+            maximum: None,
+            format: None,
+        })
+    }
+
+    fn named_object(name: &str) -> IrObject {
+        IrObject {
+            name: Some(name.to_string()),
+            fields: IndexMap::new(),
+        }
+    }
+
+    #[test]
+    fn array_of_union_needs_parens() {
+        let ty = IrType::Array {
+            items: Box::new(IrType::Union(vec![str_ty(), num_ty()])),
+            min: None,
+            max: None,
+        };
+        assert_eq!(render_type(&ty), "(string | number)[]");
+    }
+
+    #[test]
+    fn array_of_optional_needs_parens() {
+        let ty = IrType::Array {
+            items: Box::new(IrType::Optional(Box::new(str_ty()))),
+            min: None,
+            max: None,
+        };
+        assert_eq!(render_type(&ty), "(string | null)[]");
+    }
+
+    #[test]
+    fn array_of_intersection_needs_parens() {
+        let ty = IrType::Array {
+            items: Box::new(IrType::Intersection(vec![
+                named_object("Foo"),
+                named_object("Bar"),
+            ])),
+            min: None,
+            max: None,
+        };
+        assert_eq!(render_type(&ty), "(Foo & Bar)[]");
+    }
+
+    #[test]
+    fn optional_intersection_needs_parens() {
+        let ty = IrType::Optional(Box::new(IrType::Intersection(vec![
+            named_object("Foo"),
+            named_object("Bar"),
+        ])));
+        assert_eq!(render_type(&ty), "(Foo & Bar) | null");
+    }
+
+    #[test]
+    fn array_of_simple_type_no_parens() {
+        let ty = IrType::Array {
+            items: Box::new(str_ty()),
+            min: None,
+            max: None,
+        };
+        assert_eq!(render_type(&ty), "string[]");
+    }
+
+    #[test]
+    fn optional_simple_type_no_parens() {
+        let ty = IrType::Optional(Box::new(str_ty()));
+        assert_eq!(render_type(&ty), "string | null");
+    }
+
+    #[test]
+    fn optional_union_flattens() {
+        // Optional(Union(A, B)) → A | B | null (union absorption, no extra parens needed)
+        let ty = IrType::Optional(Box::new(IrType::Union(vec![str_ty(), num_ty()])));
+        assert_eq!(render_type(&ty), "string | number | null");
     }
 }
