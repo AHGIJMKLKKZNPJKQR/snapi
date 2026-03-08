@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Lint & Format
+
+All rust code must be formatted and linted with
+
+```bash
+cargo fmt --all
+cargo clippy --all-targets --all-features
+```
+
 ## Build & Test
 
 ```bash

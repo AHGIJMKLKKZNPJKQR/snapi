@@ -548,20 +548,22 @@ mod tests {
     use super::*;
 
     fn make_string_schema() -> ObjectSchema {
-        let mut s = ObjectSchema::default();
-        s.schema_type = Some(SchemaTypeSet::Single(SchemaType::String));
-        s
+        ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::String)),
+            ..Default::default()
+        }
     }
 
     fn make_object_schema(
         properties: BTreeMap<String, ObjectOrReference<ObjectSchema>>,
         required: Vec<String>,
     ) -> ObjectSchema {
-        let mut s = ObjectSchema::default();
-        s.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        s.properties = properties;
-        s.required = required;
-        s
+        ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            properties,
+            required,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -575,11 +577,13 @@ mod tests {
 
     #[test]
     fn test_normalize_nullable_string() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Multiple(vec![
-            SchemaType::String,
-            SchemaType::Null,
-        ]));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Multiple(vec![
+                SchemaType::String,
+                SchemaType::Null,
+            ])),
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -591,8 +595,10 @@ mod tests {
 
     #[test]
     fn test_normalize_integer() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Integer));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Integer)),
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -601,8 +607,10 @@ mod tests {
 
     #[test]
     fn test_normalize_boolean() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Boolean));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Boolean)),
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -614,10 +622,9 @@ mod tests {
         let mut properties = BTreeMap::new();
         properties.insert(
             "id".to_string(),
-            ObjectOrReference::Object({
-                let mut s = ObjectSchema::default();
-                s.schema_type = Some(SchemaTypeSet::Single(SchemaType::Integer));
-                s
+            ObjectOrReference::Object(ObjectSchema {
+                schema_type: Some(SchemaTypeSet::Single(SchemaType::Integer)),
+                ..Default::default()
             }),
         );
         properties.insert(
@@ -641,13 +648,15 @@ mod tests {
 
     #[test]
     fn test_normalize_enum_values() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        schema.enum_values = vec![
-            "active".to_string(),
-            "inactive".to_string(),
-            "pending".to_string(),
-        ];
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            enum_values: vec![
+                "active".to_string(),
+                "inactive".to_string(),
+                "pending".to_string(),
+            ],
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, Some("Status"), &mut visiting, &all_schemas).unwrap();
@@ -666,9 +675,11 @@ mod tests {
 
     #[test]
     fn test_normalize_array_with_items() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Array));
-        schema.items = Some(Box::new(ObjectOrReference::Object(make_string_schema())));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Array)),
+            items: Some(Box::new(ObjectOrReference::Object(make_string_schema()))),
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -684,8 +695,10 @@ mod tests {
 
     #[test]
     fn test_normalize_array_without_items_is_any() {
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Array));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Array)),
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -699,15 +712,16 @@ mod tests {
 
     #[test]
     fn test_normalize_one_of_produces_union() {
-        let mut schema = ObjectSchema::default();
-        schema.one_of = vec![
-            ObjectOrReference::Object(make_string_schema()),
-            ObjectOrReference::Object({
-                let mut s = ObjectSchema::default();
-                s.schema_type = Some(SchemaTypeSet::Single(SchemaType::Integer));
-                s
-            }),
-        ];
+        let schema = ObjectSchema {
+            one_of: vec![
+                ObjectOrReference::Object(make_string_schema()),
+                ObjectOrReference::Object(ObjectSchema {
+                    schema_type: Some(SchemaTypeSet::Single(SchemaType::Integer)),
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -723,15 +737,16 @@ mod tests {
 
     #[test]
     fn test_normalize_any_of_produces_union() {
-        let mut schema = ObjectSchema::default();
-        schema.any_of = vec![
-            ObjectOrReference::Object(make_string_schema()),
-            ObjectOrReference::Object({
-                let mut s = ObjectSchema::default();
-                s.schema_type = Some(SchemaTypeSet::Single(SchemaType::Boolean));
-                s
-            }),
-        ];
+        let schema = ObjectSchema {
+            any_of: vec![
+                ObjectOrReference::Object(make_string_schema()),
+                ObjectOrReference::Object(ObjectSchema {
+                    schema_type: Some(SchemaTypeSet::Single(SchemaType::Boolean)),
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        };
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
         let ty = normalize_schema(&schema, None, &mut visiting, &all_schemas).unwrap();
@@ -750,31 +765,36 @@ mod tests {
         let mut base_props = BTreeMap::new();
         base_props.insert(
             "id".to_string(),
-            ObjectOrReference::Object({
-                let mut s = ObjectSchema::default();
-                s.schema_type = Some(SchemaTypeSet::Single(SchemaType::Integer));
-                s
+            ObjectOrReference::Object(ObjectSchema {
+                schema_type: Some(SchemaTypeSet::Single(SchemaType::Integer)),
+                ..Default::default()
             }),
         );
-        let mut base = ObjectSchema::default();
-        base.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        base.properties = base_props;
-        base.required = vec!["id".to_string()];
+        let base = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            properties: base_props,
+            required: vec!["id".to_string()],
+            ..Default::default()
+        };
 
         let mut ext_props = BTreeMap::new();
         ext_props.insert(
             "role".to_string(),
             ObjectOrReference::Object(make_string_schema()),
         );
-        let mut ext = ObjectSchema::default();
-        ext.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        ext.properties = ext_props;
+        let ext = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            properties: ext_props,
+            ..Default::default()
+        };
 
-        let mut schema = ObjectSchema::default();
-        schema.all_of = vec![
-            ObjectOrReference::Object(base),
-            ObjectOrReference::Object(ext),
-        ];
+        let schema = ObjectSchema {
+            all_of: vec![
+                ObjectOrReference::Object(base),
+                ObjectOrReference::Object(ext),
+            ],
+            ..Default::default()
+        };
 
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
@@ -798,9 +818,11 @@ mod tests {
                 ref_path: "#/components/schemas/Node".to_string(),
             },
         );
-        let mut node_schema = ObjectSchema::default();
-        node_schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        node_schema.properties = properties;
+        let node_schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            properties,
+            ..Default::default()
+        };
 
         let mut all_schemas = BTreeMap::new();
         all_schemas.insert("Node".to_string(), ObjectOrReference::Object(node_schema));
@@ -818,11 +840,13 @@ mod tests {
     #[test]
     fn test_normalize_map_type() {
         use oas3::spec::Schema;
-        let mut schema = ObjectSchema::default();
-        schema.schema_type = Some(SchemaTypeSet::Single(SchemaType::Object));
-        schema.additional_properties = Some(Schema::Object(Box::new(ObjectOrReference::Object(
-            make_string_schema(),
-        ))));
+        let schema = ObjectSchema {
+            schema_type: Some(SchemaTypeSet::Single(SchemaType::Object)),
+            additional_properties: Some(Schema::Object(Box::new(ObjectOrReference::Object(
+                make_string_schema(),
+            )))),
+            ..Default::default()
+        };
 
         let mut visiting = HashSet::new();
         let all_schemas = BTreeMap::new();
