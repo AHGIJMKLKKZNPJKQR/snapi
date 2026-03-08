@@ -1,0 +1,128 @@
+openapi: "3.1.0"
+info:
+  title: Tree API
+  version: "1.0.0"
+  description: "An API demonstrating circular/recursive schema references"
+servers:
+  - url: https://tree.example.com
+
+paths:
+  /nodes:
+    get:
+      operationId: listNodes
+      summary: List root nodes
+      tags: [nodes]
+      responses:
+        "200":
+          description: Root nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TreeNode"
+
+  /nodes/{id}:
+    get:
+      operationId: getNode
+      summary: Get a node by ID
+      tags: [nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A tree node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreeNode"
+    post:
+      operationId: addChild
+      summary: Add a child node
+      tags: [nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewNode"
+      responses:
+        "201":
+          description: Created child node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreeNode"
+
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories (doubly-linked)
+      tags: [categories]
+      responses:
+        "200":
+          description: A list of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+components:
+  schemas:
+    TreeNode:
+      type: object
+      required: [id, value]
+      properties:
+        id:
+          type: integer
+          description: Node identifier
+        value:
+          type: string
+          description: Node payload
+        children:
+          type: array
+          description: Child nodes (recursive)
+          items:
+            $ref: "#/components/schemas/TreeNode"
+        parent:
+          description: Parent node reference (nullable circular ref)
+          oneOf:
+            - $ref: "#/components/schemas/TreeNode"
+            - type: "null"
+
+    NewNode:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parent:
+          description: Parent category
+          oneOf:
+            - $ref: "#/components/schemas/Category"
+            - type: "null"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"

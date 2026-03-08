@@ -1,0 +1,21 @@
+openapi: "3.1.0"
+info:
+  title: Tag Collision Test
+  version: "0.1.0"
+paths:
+  /a:
+    get:
+      operationId: getA
+      tags:
+        - hello_world
+      responses:
+        "200":
+          description: ok
+  /b:
+    get:
+      operationId: getB
+      tags:
+        - hello-world
+      responses:
+        "200":
+          description: ok

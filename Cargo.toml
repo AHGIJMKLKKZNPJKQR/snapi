@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["crates/snapi-core", "crates/snapi-generators", "crates/snapi-cli"]
+
+[workspace.dependencies]
+anyhow     = "1"
+heck       = "0.5"
+indexmap   = { version = "2", features = ["serde"] }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tera       = "1"
+miette     = { version = "7", features = ["fancy"] }
+thiserror  = "2"
+clap       = { version = "4", features = ["derive"] }
+oas3       = "0.20"
+toml       = "1"
+dialoguer  = "0.11"
+insta      = { version = "1", features = ["json"] }
+tempfile   = "3"

@@ -1,0 +1,22 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/client.ts\")"
+---
+import { PetsResource } from "./resources/pets";
+
+export interface ApiClientOptions {
+  baseUrl: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+/** Petstore */
+export class ApiClient {
+  readonly pets: PetsResource;
+
+  constructor(private options: ApiClientOptions) {
+    const headers: Record<string, string> = { ...options.headers };
+    if (options.apiKey) headers["Authorization"] = `Bearer ${options.apiKey}`;
+    this.pets = new PetsResource(options.baseUrl, headers);
+  }
+}

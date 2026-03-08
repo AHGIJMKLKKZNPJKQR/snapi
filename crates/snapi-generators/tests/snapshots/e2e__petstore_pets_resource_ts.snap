@@ -1,0 +1,61 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/pets.ts\")"
+---
+import type { NewPet, Pet } from "../models";
+
+export class PetsResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  /** List all pets */
+  async listPets(query?: { limit?: number; tags?: string }): Promise<Pet[]> {
+    let url = new URL(`${this.baseUrl}/pets`).toString();
+    if (query) {
+      const params = new URLSearchParams();
+      if (query.limit != null) params.set("limit", String(query.limit));
+      if (query.tags != null) params.set("tags", String(query.tags));
+      url = url + '?' + params.toString();
+    }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Pet[]>;
+  }
+
+  /** Create a new pet */
+  async createPet(body: NewPet): Promise<Pet> {
+    const url = new URL(`${this.baseUrl}/pets`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Pet>;
+  }
+
+  /** Get a pet by ID */
+  async getPet(id: number): Promise<Pet> {
+    const url = new URL(`${this.baseUrl}/pets/${id}`).toString();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<Pet>;
+  }
+
+  /** Delete a pet */
+  async deletePet(id: number): Promise<void> {
+    const url = new URL(`${this.baseUrl}/pets/${id}`).toString();
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: { ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return;
+  }
+
+}

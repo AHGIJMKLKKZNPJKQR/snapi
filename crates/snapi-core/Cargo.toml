@@ -1,0 +1,16 @@
+[package]
+name = "snapi-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow     = { workspace = true }
+heck       = { workspace = true }
+indexmap   = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tera       = { workspace = true }
+miette     = { workspace = true }
+thiserror  = { workspace = true }
+oas3       = { workspace = true }

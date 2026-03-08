@@ -1,0 +1,23 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export interface NewPet {
+  name: string;
+  tag?: string;
+}
+
+export interface Pet {
+  /** Unique pet identifier */
+  id: number;
+  /** Pet name */
+  name: string;
+  status?: PetStatus;
+  /** Optional categorisation tag */
+  tag?: string;
+}
+
+export type PetStatus =
+  | "available"
+  | "pending"
+  | "sold";

@@ -1,0 +1,31 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/composition.ts\")"
+---
+import type { ApiError, CompositionCreatedResponse, CreateCompositionRequest } from "../models";
+
+export class CompositionResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  async createComposition(body: CreateCompositionRequest): Promise<CompositionCreatedResponse> {
+    const url = new URL(`${this.baseUrl}/api/composition`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<CompositionCreatedResponse>;
+  }
+
+  async deleteComposition(compositionId: string): Promise<void> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}`).toString();
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: { ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return;
+  }
+
+}

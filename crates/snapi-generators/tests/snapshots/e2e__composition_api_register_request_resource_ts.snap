@@ -1,0 +1,54 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/register_request.ts\")"
+---
+import type { AacRtpMode, ApiError, InputRtpVideoOptions, InputWhepVideoOptions, InputWhipVideoOptions, OutputHlsAudioOptions, OutputHlsVideoOptions, OutputMp4AudioOptions, OutputMp4VideoOptions, OutputRtmpClientAudioOptions, OutputRtmpClientVideoOptions, OutputRtpAudioOptions, OutputRtpVideoOptions, OutputWhepAudioOptions, OutputWhepVideoOptions, OutputWhipAudioOptions, OutputWhipVideoOptions, Resolution, TransportProtocol } from "../models";
+
+export class RegisterRequestResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  async registerFont(compositionId: string, body: { font: string }): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/font/register`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+  async registerImage(compositionId: string, imageId: string, body: { asset_type: "png"; url?: string | null } | { asset_type: "jpeg"; url?: string | null } | { asset_type: "svg"; resolution?: null | Resolution; url?: string | null } | { asset_type: "gif"; url?: string | null } | { asset_type: "auto"; url?: string | null }): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/image/${imageId}/register`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+  async registerInput(compositionId: string, inputId: string, body: { audio?: null | { decoder: "opus" } | { audio_specific_config: string; decoder: "aac"; rtp_mode?: null | AacRtpMode }; offset_ms?: number | null; port: string | number; required?: boolean | null; transport_protocol?: null | TransportProtocol; video?: null | InputRtpVideoOptions; type: "rtp_stream" } | { app: string; offset_ms?: number | null; required?: boolean | null; stream_key: string; type: "rtmp_server" } | { loop?: boolean | null; offset_ms?: number | null; required?: boolean | null; url?: string | null; type: "mp4" } | { bearer_token?: string | null; endpoint_override?: string | null; offset_ms?: number | null; required?: boolean | null; video?: null | InputWhipVideoOptions; type: "whip_server" } | { bearer_token?: string | null; endpoint_url: string; offset_ms?: number | null; required?: boolean | null; video?: null | InputWhepVideoOptions; type: "whep_client" } | { offset_ms?: number | null; required?: boolean | null; url: string; type: "hls" }): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/input/${inputId}/register`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+  async registerOutput(compositionId: string, outputId: string, body: { audio?: null | OutputRtpAudioOptions; ip?: string | null; port: string | number; transport_protocol?: null | TransportProtocol; video?: null | OutputRtpVideoOptions; type: "rtp_stream" } | { audio?: null | OutputRtmpClientAudioOptions; url: string; video?: null | OutputRtmpClientVideoOptions; type: "rtmp_client" } | { audio?: null | OutputMp4AudioOptions; ffmpeg_options?: Record<string, string> | null; path: string; video?: null | OutputMp4VideoOptions; type: "mp4" } | { audio?: null | OutputWhipAudioOptions; bearer_token?: string | null; endpoint_url: string; video?: null | OutputWhipVideoOptions; type: "whip_client" } | { audio?: null | OutputWhepAudioOptions; bearer_token?: string | null; video?: null | OutputWhepVideoOptions; type: "whep_server" } | { audio?: null | OutputHlsAudioOptions; max_playlist_size?: number | null; path: string; video?: null | OutputHlsVideoOptions; type: "hls" }): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/output/${outputId}/register`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+}

@@ -1,0 +1,364 @@
+openapi: "3.1.0"
+info:
+  title: Complex Schemas API
+  version: "1.0.0"
+  description: "Fixture exercising allOf merging, oneOf unions, nested oneOf+allOf, inline objects, additionalProperties maps, nullable fields, and recursive circular refs"
+servers:
+  - url: https://complex.example.com
+
+paths:
+  # allOf merging: Article inherits Timestamped fields + inline object fields
+  /articles:
+    get:
+      operationId: listArticles
+      summary: List articles
+      tags: [articles]
+      parameters:
+        - name: author_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+    post:
+      operationId: createArticle
+      summary: Create an article
+      tags: [articles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateArticleInput"
+      responses:
+        "201":
+          description: Created article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+
+  /articles/{id}:
+    get:
+      operationId: getArticle
+      summary: Get an article
+      tags: [articles]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: An article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+
+  # oneOf union response
+  /search:
+    get:
+      operationId: search
+      summary: Search across resource types
+      tags: [search]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+
+  # additionalProperties (Map) + nullable field
+  /configs:
+    get:
+      operationId: listConfigs
+      summary: List all configs
+      tags: [configs]
+      responses:
+        "200":
+          description: All configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Config"
+
+  /configs/{name}:
+    put:
+      operationId: updateConfig
+      summary: Update a config
+      tags: [configs]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Config"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+
+  # Recursive circular refs + inline unnamed request body
+  /trees/{id}:
+    get:
+      operationId: getTree
+      summary: Get a tree node
+      tags: [trees]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A tree node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreeNode"
+    post:
+      operationId: addTreeChild
+      summary: Add a child to a node
+      tags: [trees]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              # Inline unnamed object — exercises render_inline_object
+              type: object
+              required: [label]
+              properties:
+                label:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "201":
+          description: Created child node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreeNode"
+
+  # Nested oneOf + allOf
+  /notifications:
+    post:
+      operationId: sendNotification
+      summary: Send a notification
+      tags: [notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPayload"
+      responses:
+        "201":
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+components:
+  schemas:
+    # Base object used in allOf inheritance
+    Timestamped:
+      type: object
+      required: [created_at]
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          oneOf:
+            - type: string
+            - type: "null"
+
+    # allOf: merges Timestamped + inline object (also has an inline author field)
+    Article:
+      allOf:
+        - $ref: "#/components/schemas/Timestamped"
+        - type: object
+          required: [id, title, body]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            body:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+            author:
+              # Inline unnamed object — exercises render_inline_object on a field
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+
+    CreateArticleInput:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    # oneOf union: SearchResult = ArticleResult | UserResult
+    ArticleResult:
+      type: object
+      required: [kind, id, title]
+      properties:
+        kind:
+          type: string
+        id:
+          type: string
+        title:
+          type: string
+
+    UserResult:
+      type: object
+      required: [kind, id, username]
+      properties:
+        kind:
+          type: string
+        id:
+          type: string
+        username:
+          type: string
+
+    SearchResult:
+      oneOf:
+        - $ref: "#/components/schemas/ArticleResult"
+        - $ref: "#/components/schemas/UserResult"
+
+    # additionalProperties map + nullable field via oneOf
+    Config:
+      type: object
+      required: [name, values]
+      properties:
+        name:
+          type: string
+        values:
+          type: object
+          additionalProperties:
+            type: string
+        description:
+          oneOf:
+            - type: string
+            - type: "null"
+
+    # Recursive circular ref: children and parent both reference TreeNode
+    TreeNode:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/TreeNode"
+        parent:
+          oneOf:
+            - $ref: "#/components/schemas/TreeNode"
+            - type: "null"
+
+    # Base for notification allOf patterns
+    BaseNotification:
+      type: object
+      required: [id, channel]
+      properties:
+        id:
+          type: string
+        channel:
+          type: string
+
+    # allOf merging (inheritance pattern)
+    Notification:
+      allOf:
+        - $ref: "#/components/schemas/BaseNotification"
+        - type: object
+          properties:
+            sent_at:
+              type: string
+
+    # Nested oneOf + allOf: each variant is an allOf of BaseNotification + unique fields
+    NotificationPayload:
+      oneOf:
+        - allOf:
+            - $ref: "#/components/schemas/BaseNotification"
+            - type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+        - allOf:
+            - $ref: "#/components/schemas/BaseNotification"
+            - type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string

@@ -1,0 +1,24 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/models.ts\")"
+---
+export interface CreateTodoInput {
+  done?: boolean;
+  title: string;
+}
+
+export interface Todo {
+  created_at?: string;
+  /** Completion status */
+  done: boolean;
+  /** Unique identifier */
+  id: string;
+  /** Todo title */
+  title: string;
+  updated_at?: string;
+}
+
+export interface UpdateTodoInput {
+  done?: boolean;
+  title?: string;
+}

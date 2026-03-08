@@ -1,0 +1,31 @@
+---
+source: crates/snapi-generators/tests/e2e.rs
+expression: "extract_text(&tree, \"src/resources/update_request.ts\")"
+---
+import type { ApiError, UpdateOutputRequest } from "../models";
+
+export class UpdateRequestResource {
+  constructor(private baseUrl: string, private headers: Record<string, string> = {}) {}
+
+  async requestKeyframe(compositionId: string, outputId: string): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/output/${outputId}/request_keyframe`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { ...this.headers },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+  async updateOutput(compositionId: string, outputId: string, body: UpdateOutputRequest): Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/api/composition/${compositionId}/output/${outputId}/update`).toString();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.headers },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json() as Promise<{ bearer_token: string } | { audio_duration_ms?: number | null; video_duration_ms?: number | null } | { port?: number | null } | Record<string, unknown>>;
+  }
+
+}

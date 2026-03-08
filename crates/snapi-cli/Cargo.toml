@@ -1,0 +1,21 @@
+[package]
+name = "snapi-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "snapi"
+path = "src/main.rs"
+
+[dependencies]
+anyhow      = { workspace = true }
+clap        = { workspace = true }
+miette      = { workspace = true }
+serde       = { workspace = true }
+toml        = { workspace = true }
+serde_json  = { workspace = true }
+tera        = { workspace = true }
+dialoguer        = { workspace = true }
+tempfile         = { workspace = true }
+snapi-core       = { path = "../snapi-core" }
+snapi-generators = { path = "../snapi-generators" }
