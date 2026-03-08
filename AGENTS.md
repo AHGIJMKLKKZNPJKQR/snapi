@@ -1,5 +1,9 @@
 # AGENTS.md
 
+Always write tests before writing code.
+Make sure the tests fail before the code is implemented.
+Make sure the tests pass after the code is written.
+
 ## Lint & Format
 
 All rust code must be formatted and linted with

@@ -1,20 +1,20 @@
 #![allow(dead_code)]
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use snapi_core::error::SnapiError;
 use snapi_core::generator::PublishConfig;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct InputConfig {
     pub spec: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PackageConfig {
     pub version: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RawTargetConfig {
     pub language: String,
     pub variant: Option<String>,
@@ -25,7 +25,7 @@ pub struct RawTargetConfig {
     pub publish: Option<PublishConfig>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub input: InputConfig,
     pub package: Option<PackageConfig>,

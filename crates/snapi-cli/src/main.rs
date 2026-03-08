@@ -4,6 +4,7 @@ use miette::IntoDiagnostic;
 use std::path::PathBuf;
 
 mod config;
+mod init;
 
 #[derive(clap::Parser)]
 #[command(
@@ -29,6 +30,12 @@ enum Cli {
     },
     /// Dump the intermediate representation as JSON
     DumpIr {
+        #[arg(long, default_value = "snapi.toml")]
+        config: PathBuf,
+    },
+    /// Initialise a new snapi.toml interactively
+    Init {
+        /// Path to write the config file
         #[arg(long, default_value = "snapi.toml")]
         config: PathBuf,
     },
@@ -137,6 +144,12 @@ fn main() -> miette::Result<()> {
             let ir = snapi_core::pipeline::load(spec_path).map_err(anyhow_to_miette)?;
             let json = serde_json::to_string_pretty(&ir).into_diagnostic()?;
             println!("{}", json);
+        }
+
+        Cli::Init {
+            config: config_path,
+        } => {
+            init::run(&config_path)?;
         }
     }
 
